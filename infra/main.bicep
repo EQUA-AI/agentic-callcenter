@@ -35,6 +35,14 @@ param openAIWhisperVersion string
 param openAIApiVersion string
 param searchIndexName string
 
+// New Foundry parameters
+param foundryEndpoint string = ''
+param agentId string = ''
+param useFoundryAgent string = 'false'
+
+// WhatsApp ACS parameters - only need the channel registration ID
+param acsChannelRegistrationId string = ''
+
 var tags = {
   'azd-env-name': environmentName
 }
@@ -185,10 +193,12 @@ module aca './aca.bicep' = {
     acsEndpoint: acs.outputs.acsEndpoint
     cognitiveServiceEndpoint: speech.outputs.speechServiceEndpoint
     serviceBusNamespaceFqdn: acs.outputs.sbNamespaceFQDN
-    searchEndpoint: search.outputs.endpoint
-    searchIndexName: searchIndexName
-    approvalLogicAppUrl: logicapp.outputs.approveServiceUrl
-    openTicketLogicAppUrl: logicapp.outputs.openTicketUrl
+    // Foundry parameters
+    foundryEndpoint: foundryEndpoint
+    agentId: agentId
+    useFoundryAgent: useFoundryAgent
+    // WhatsApp ACS parameters - only need channel registration ID
+    acsChannelRegistrationId: acsChannelRegistrationId
   }
 }
 
@@ -210,6 +220,7 @@ output COSMOSDB_CONTAINER string = cosmosdb.outputs.cosmosDbContainer
 output COSMOSDB_CONFIG_CONTAINER string = cosmosdb.outputs.cosmosDbConfigContainer
 output ACS_ENDPOINT string = acs.outputs.acsEndpoint
 output ACS_TOPIC_RESOURCE_ID string = acs.outputs.acsTopicId
+output ACS_CHANNEL_REGISTRATION_ID string = acsChannelRegistrationId
 output LOGIC_APPS_URL string = logicapp.outputs.approveServiceUrl
 output OPENTICKET_LOGIC_APPS_URL string = logicapp.outputs.openTicketUrl
 output AZURE_OPENAI_MODEL string = openAIModel

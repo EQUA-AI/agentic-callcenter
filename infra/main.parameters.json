@@ -40,6 +40,18 @@
       },
       "searchIndexName": {
         "value": "${AZURE_SEARCH_INDEX_NAME=telcoagents}"
+      },
+      "foundryEndpoint": {
+        "value": "${AZURE_AI_FOUNDRY_ENDPOINT=}"
+      },
+      "agentId": {
+        "value": "${AGENT_ID=}"
+      },
+      "useFoundryAgent": {
+        "value": "${USE_FOUNDRY_AGENT=false}"
+      },
+      "acsChannelRegistrationId": {
+        "value": "${ACS_CHANNEL_REGISTRATION_ID=}"
       }
     }
 }

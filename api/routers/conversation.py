@@ -8,11 +8,9 @@ from pydantic import BaseModel
 import logging
 from azure.identity import DefaultAzureCredential
 
-from vanilla_aiagents.remote.remote import RemoteAskable, RESTConnection
-from vanilla_aiagents.workflow import Workflow, WorkflowInput
-from vanilla_aiagents.conversation import Conversation
 from conversation_store import ConversationStore
 from utils.voice_utils import whisper_client
+from foundry_agent import ask_foundry
 
 conversation_router = APIRouter(prefix="/conversation")
 
@@ -54,82 +52,129 @@ class MessageRequest(BaseModel):
     media: Optional[list[MediaRequest]] = None
 
 
-remote_connection = RESTConnection(url=os.getenv("TEAM_REMOTE_URL"))
-# remote_connection = GRPCConnection(url=os.getenv("TEAM_REMOTE_URL"))
-remote = RemoteAskable(id="telco-team", connection=remote_connection)
-
-
 @conversation_router.post("/{conversation_id}")
 def send_message(conversation_id: str, request: MessageRequest):
     """Send a message to an existing conversation."""
     
-    # start_trace(collection=f"chat-{conversation_id}")
+    print(f"[ROUTER] POST /{conversation_id} called with message: '{request.message[:50]}...'")
     
-    conversation = Conversation(messages=[], variables={})
-    history = db.get_conversation(conversation_id)
-    if history is not None:
-        conversation.messages = history["messages"]
-        conversation.variables = history["variables"]
+    # Get conversation history
+    history = db.get_conversation(conversation_id) or {"messages": [], "variables": {}}
+    messages = history.get("messages", [])
+    variables = history.get("variables", {})
+    
     message = _preprocess_request(request)
+    history_count = len(messages)
     
-    history_count = len(conversation.messages)
+    try:
+        # Extract text from message
+        text_message = message if isinstance(message, str) else getattr(message, 'text', str(message))
         
-    workflow = Workflow(askable=remote, conversation=conversation)
-    
-    result = workflow.run(message)
-    
-    if "error" in result:
-        raise Exception("Error in workflow")
-    
-    db.save_conversation(conversation_id, workflow.conversation)
-    
-    # delta = len(workflow.conversation.messages) - history_count
-    
-    new_messages = workflow.conversation.messages[history_count:]
-    
-    return new_messages
+        # Get response from Azure AI Foundry agent with conversation context
+        response = ask_foundry(text_message, conversation_id)
+        
+        # Add user message and assistant response to conversation
+        messages.append({
+            "role": "user",
+            "content": text_message,
+            "name": "user"
+        })
+        messages.append({
+            "role": "assistant", 
+            "content": response,
+            "name": "foundry-agent"
+        })
+        
+        # Save conversation
+        db.save_conversation(conversation_id, {"messages": messages, "variables": variables})
+        
+        # Return new messages
+        new_messages = messages[history_count:]
+        return new_messages
+        
+    except Exception as e:
+        logging.error(f"Azure AI Foundry agent error: {e}")
+        raise Exception(f"Error processing message: {e}")
+
 
 @conversation_router.post("/{conversation_id}/stream")
 def send_message_stream(conversation_id: str, request: MessageRequest):
+    """Send a message to an existing conversation with streaming response."""
     
-    conversation = Conversation(messages=[], variables={})
-    history = db.get_conversation(conversation_id)
-    if history is not None:
-        conversation.messages = history["messages"]
-        conversation.variables = history["variables"]
+    print(f"[ROUTER] POST /{conversation_id}/stream called with message: '{request.message[:50]}...'")
+    
+    # Get conversation history
+    history = db.get_conversation(conversation_id) or {"messages": [], "variables": {}}
+    messages = history.get("messages", [])
+    variables = history.get("variables", {})
+    
     message = _preprocess_request(request)
     
     logging.info(f"Starting conversation {conversation_id}")
-        
-    workflow = Workflow(askable=remote, conversation=conversation)
     
-    def _stream():
-        for mark, content in workflow.run_stream(message):
-            json_string = json.dumps([mark, content])
-            logging.info(json_string)                   
-            yield json_string + "\n" # NEW LINE DELIMITED JSON
+    def _foundry_stream():
+        try:
+            # Extract text from message
+            text_message = message if isinstance(message, str) else getattr(message, 'text', str(message))
             
-        # Clean converation messages and keep only content, name and role fields
-        conversation.messages = [{"content": m["content"], "name": m["name"] if "name" in m else None, "role": m["role"]} for m in conversation.messages]
-        db.save_conversation(conversation_id, workflow.conversation)
+            # Start marker
+            yield json.dumps(["start", "foundry-agent"]) + "\n"
+            
+            # Get response from Azure AI Foundry agent with conversation context
+            response = ask_foundry(text_message, conversation_id)
+            
+            # Stream the response
+            yield json.dumps(["delta", {"content": response, "tool_calls": None}]) + "\n"
+            
+            # Add messages to conversation
+            messages.append({
+                "role": "user",
+                "content": text_message,
+                "name": "user"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": response,
+                "name": "foundry-agent"
+            })
+            
+            # End marker
+            yield json.dumps(["result", "success"]) + "\n"
+            
+            # Save conversation
+            clean_messages = [{"content": m["content"], "name": m.get("name"), "role": m["role"]} for m in messages]
+            db.save_conversation(conversation_id, {"messages": clean_messages, "variables": variables})
+            
+        except Exception as e:
+            logging.error(f"Azure AI Foundry agent streaming error: {e}")
+            yield json.dumps(["error", str(e)]) + "\n"
+            yield json.dumps(["result", "error"]) + "\n"
     
-    return StreamingResponse(_stream(), media_type="text/event-stream")
+    return StreamingResponse(_foundry_stream(), media_type="text/event-stream")
+
 
 def _preprocess_request(input_message: MessageRequest):
+    """Preprocess the request message, handling media attachments."""
     if input_message.media is None:
         return input_message.message
     else:
-        new_input = WorkflowInput(input_message.message)
+        # Simple implementation - for now just return the text message
+        # In the future, we can enhance this to handle images and audio with Azure AI Foundry
+        text_content = input_message.message
+        
         for m in input_message.media:
             if "audio" in m.mimeType:
-                transcription = whisper_client.audio.transcriptions.create(
-                    model="whisper",
-                    file=input_message.media.data
-                )
-                new_input.text = transcription.text
+                try:
+                    # Transcribe audio using Whisper
+                    transcription = whisper_client.audio.transcriptions.create(
+                        model="whisper",
+                        file=input_message.media.data
+                    )
+                    text_content = transcription.text
+                except Exception as e:
+                    logging.error(f"Audio transcription error: {e}")
             elif "image" in m.mimeType:
-                m.data
-                image_bytes = base64.b64decode(m.data)
-                new_input.add_image_bytes(image_bytes)
+                # For now, just note that there's an image
+                text_content += " [Image attached]"
         
-        return new_input
+        return text_content

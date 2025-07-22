@@ -8,4 +8,5 @@ colorlog>=6.8.2
 requests>=2.32.3
 invoke>=2.2.0
 starlette_gzip_request>=0.1.0
-libs/vanilla_aiagents-1.0.0-py3-none-any.whl[remote]
+azure-ai-projects>=1.0.0b12
+openai>=1.0.0

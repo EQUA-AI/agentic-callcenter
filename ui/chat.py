@@ -73,7 +73,7 @@ class APIClient:
         return response.json()
     
 client = APIClient()
-INTRO_MESSAGE = "Hi!"
+INTRO_MESSAGE = "Start conversation"
 
 @cl.on_chat_start
 async def setup_agents():
@@ -84,8 +84,9 @@ async def setup_agents():
         cl.user_session.set('conversation_id', conversation_id)
         cl.user_session.set('last_seen_message_index', 0)
         
-        messages = await send_message(conversation_id, INTRO_MESSAGE)        
-        await display_messages(messages)
+        # Don't automatically send an intro message - wait for user input
+        # messages = await send_message(conversation_id, INTRO_MESSAGE)        
+        # await display_messages(messages)
     else:
         logging.info(f"Resuming conversation with id: {conversation_id}")
         messages = client.get_messages(conversation_id) or []

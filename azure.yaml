@@ -16,13 +16,6 @@ services:
         docker:
             path: api.dockerfile
             remoteBuild: true
-    agents:
-        project: telco-team
-        host: containerapp
-        language: python
-        docker:
-            path: telcoteam.dockerfile
-            remoteBuild: true
     voice:
         project: voice
         host: containerapp
@@ -42,21 +35,17 @@ hooks:
         shell: pwsh
         run: |
             python -m venv .venv
-            .\.venv\Scripts\Activate
-            pip install --upgrade pip
-            pip install -r ./infra/scripts/requirements.txt
+            & ./.venv/bin/python -m pip install --upgrade pip
+            & ./.venv/bin/python -m pip install -r ./infra/scripts/requirements.txt
 
-            python ./infra/scripts/setup_aisearch.py
-            python ./infra/scripts/setup_cosmos.py
+            & ./.venv/bin/python ./infra/scripts/setup_aisearch.py
+            & ./.venv/bin/python ./infra/scripts/setup_cosmos.py
         interactive: true
         continueOnError: false
     postdeploy: 
         shell: pwsh
         run: |
-            .\.venv\Scripts\Activate
-            python ./infra/scripts/setup_voice_webhook.py
-            
-            cd telco-team && pip install -r requirements.txt
+            & ./.venv/bin/python ./infra/scripts/setup_voice_webhook.py
             cd ../api && pip install -r requirements.txt
             cd ../ui && pip install -r requirements.txt
         interactive: true

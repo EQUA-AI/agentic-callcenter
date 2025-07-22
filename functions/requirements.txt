@@ -8,3 +8,4 @@ azure-communication-messages
 openai
 python-dotenv
 aiohttp
+azure-ai-projects>=1.0.0b12

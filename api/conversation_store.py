@@ -1,5 +1,4 @@
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
-from vanilla_aiagents.conversation import Conversation
 
 class ConversationStore:
     def __init__(self, url, key, database_name, container_name):
@@ -28,12 +27,12 @@ class ConversationStore:
             self.container = self.db.get_container_client(container=self.container_name)
             
     # Save all in the conversation
-    def save_conversation(self, conversation_id: str, conversation: Conversation):
+    def save_conversation(self, conversation_id: str, conversation: dict):
         self.container.upsert_item({
                 "id": conversation_id,
                 "conversation_id": conversation_id,
-                "messages": conversation.messages,
-                "variables": conversation.variables,
+                "messages": conversation.get("messages", []),
+                "variables": conversation.get("variables", {}),
             })
         
     def get_conversation(self, conversation_id):

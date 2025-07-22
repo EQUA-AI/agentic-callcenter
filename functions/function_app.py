@@ -72,10 +72,11 @@ async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
             # Convert media_blob to bytes
             binary_data = b"".join(media_blob)            
             
-            content = whisper_client.audio.transcriptions.create(
+            transcription = whisper_client.audio.transcriptions.create(
                 model="whisper",
                 file=binary_data
             )
+            content = transcription.text
             
         elif "image" in media['mimeType']:
             # Convert media_blob to bytes
@@ -84,7 +85,11 @@ async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
             
             # TODO handle sending image to OpenAI
             # TBD handle media directly in the API layer
-            
+    
+    # Skip processing if there's no text content
+    if not content or content.strip() == "":
+        logger.info(f"No text content to process, skipping message from {from_number}")
+        return
     
     new_messages = await ask(content, from_number)
     
