@@ -17,17 +17,17 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # azd build-in variables for federated authentication
+    # azd build-in secrets for federated authentication
     env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
-      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
       # OpenAI configuration
-      OPENAI_NAME: ${{ vars.OPENAI_NAME }}
-      OPENAI_RESOURCE_GROUP_NAME: ${{ vars.OPENAI_RESOURCE_GROUP_NAME }}
-      EMAIL_RECIPIENT_ADDRESS: ${{ vars.EMAIL_RECIPIENT_ADDRESS }}
+      OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
+      OPENAI_RESOURCE_GROUP_NAME: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+      EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,9 +44,9 @@ jobs:
       - name: Log in with Azure (Federated Credentials)
         uses: azure/login@v2
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Provision Infrastructure and Deploy Application
         run: azd up --no-prompt
