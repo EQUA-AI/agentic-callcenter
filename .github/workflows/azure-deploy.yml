@@ -48,6 +48,12 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      # Configure azd to use federated credentials from GitHub Actions
+      - name: Configure azd for federated credentials
+        run: |
+          azd config set auth.useAzCliAuth true
+        shell: bash
+
       - name: Provision Infrastructure and Deploy Application
         run: azd up --no-prompt
         shell: bash
