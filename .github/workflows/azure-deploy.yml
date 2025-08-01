@@ -9,25 +9,21 @@ on:
     branches:
       - main
 
-  # Using federated credentials (user-assigned managed identity) authentication
+  # Using client credentials (service principal) authentication
 permissions:
-  id-token: write
   contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # azd build-in variables for federated authentication
+    # azd build-in variables for client credentials authentication
     env:
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-      # Foundry agent configuration
-      AZURE_AI_FOUNDRY_ENDPOINT: ${{ vars.AZURE_AI_FOUNDRY_ENDPOINT }}
-      AGENT_ID: ${{ vars.AGENT_ID }}
-      USE_FOUNDRY_AGENT: ${{ vars.USE_FOUNDRY_AGENT }}
       # OpenAI configuration
       OPENAI_NAME: ${{ vars.OPENAI_NAME }}
       OPENAI_RESOURCE_GROUP_NAME: ${{ vars.OPENAI_RESOURCE_GROUP_NAME }}
@@ -44,13 +40,14 @@ jobs:
         with:
           python-version: '3.12' 
 
-      # Login with federated credentials (managed identity)
-      - name: Log in with Azure (Federated Credentials)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      # Login with service principal (client credentials)
+      - name: Log in with Azure (Client Credentials)
+        if: ${{ env.AZURE_CLIENT_ID != '' }}
+        run: |
+          az login --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --password "$AZURE_CLIENT_SECRET" \
+            --tenant "$AZURE_TENANT_ID"
 
       - name: Set environment variables
         run: |

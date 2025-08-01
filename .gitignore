@@ -165,3 +165,7 @@ cython_debug/
 .files/
 chainlit.md
 .azure
+
+#extras
+test-scripts/
+extra-docs/
