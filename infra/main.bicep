@@ -47,6 +47,7 @@ param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
 param existingEventGridTopicName string = 'AIWedding'
+param existingAcsPrincipalId string = ''
 param useExistingAcs bool = true
 
 var tags = {
@@ -139,6 +140,7 @@ module acs './acs.bicep' = {
     existingAcsName: existingAcsName
     existingAcsResourceGroup: existingAcsResourceGroup
     existingEventGridTopicName: existingEventGridTopicName
+    existingAcsPrincipalId: existingAcsPrincipalId
     useExistingAcs: useExistingAcs
   }
 }

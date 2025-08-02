@@ -9,6 +9,7 @@ param location string = resourceGroup().location
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
 param existingEventGridTopicName string = 'AIWedding'
+param existingAcsPrincipalId string = ''
 param useExistingAcs bool = true
 
 // Create new ACS resource only if not using existing
@@ -79,12 +80,6 @@ resource callQueue 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' =
   properties: {}
 }
 
-// Reference to existing Event Grid system topic in the ACS resource group
-resource existingAcsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' existing = if (useExistingAcs) {
-  name: existingEventGridTopicName
-  scope: resourceGroup(existingAcsResourceGroup)
-}
-
 // For new ACS resources, create Event Grid system topic in the same resource group
 resource newAcsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = if (!useExistingAcs) {
   name: '${prefix}-acs-topic-${uniqueId}'
@@ -100,9 +95,6 @@ resource newAcsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = i
     topicType: 'Microsoft.Communication.CommunicationServices'
   }
 }
-
-// Use the appropriate Event Grid topic
-var eventGridTopic = useExistingAcs ? existingAcsEGTopic : newAcsEGTopic
 
 // Note: Event Grid subscriptions to Service Bus queues across resource groups 
 // require special handling. For now, we'll skip creating subscriptions here
@@ -122,4 +114,4 @@ output sbNamespaceFQDN string = serviceBusNamespace.properties.serviceBusEndpoin
 output smsQueueName string = smsQueue.name
 output advMsgQueueName string = advMsgQueue.name
 output callQueueName string = callQueue.name
-output acsIdentityId string = 'existing-acs-identity'
+output acsIdentityId string = existingAcsPrincipalId
