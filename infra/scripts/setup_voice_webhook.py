@@ -31,9 +31,16 @@ try:
                 }
             },
             "filter": {
-                "included_event_types": ["Microsoft.Communication.IncomingCall"]
+                "included_event_types": [
+                    "Microsoft.Communication.IncomingCall",
+                    "Microsoft.Communication.CallEnded",
+                    "Microsoft.Communication.CallConnectionStateChanged",
+                    "Microsoft.Communication.ParticipantsUpdated"
+                ]
             }
         }
     ).result()
+    print(f"✅ Successfully created voice webhook subscription: {subscription_name}")
 except HttpResponseError as e:
-    print(e)
+    print(f"❌ Error creating voice webhook subscription: {e}")
+    print(f"Error details: {e.response.text if hasattr(e, 'response') else 'No additional details'}")

@@ -46,7 +46,17 @@ hooks:
         shell: pwsh
         run: |
             & ./.venv/bin/python ./infra/scripts/setup_voice_webhook.py
-            cd ../api && pip install -r requirements.txt
-            cd ../ui && pip install -r requirements.txt
+            if (Test-Path "./api/requirements.txt") {
+                Write-Host "Installing API dependencies..."
+                Set-Location ./api
+                pip install -r requirements.txt
+                Set-Location ..
+            }
+            if (Test-Path "./ui/requirements.txt") {
+                Write-Host "Installing UI dependencies..."
+                Set-Location ./ui
+                pip install -r requirements.txt
+                Set-Location ..
+            }
         interactive: true
         continueOnError: false

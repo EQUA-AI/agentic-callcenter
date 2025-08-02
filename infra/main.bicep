@@ -36,12 +36,12 @@ param openAIApiVersion string
 param searchIndexName string
 
 // New Foundry parameters
-param foundryEndpoint string = ''
-param agentId string = ''
-param useFoundryAgent string = 'false'
+param foundryEndpoint string = 'https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni'
+param agentId string = 'asst_khFWOGAwaF7BJ73ecupCfXze'
+param useFoundryAgent string = 'true'
 
 // WhatsApp ACS parameters - only need the channel registration ID
-param acsChannelRegistrationId string = ''
+param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 
 var tags = {
   'azd-env-name': environmentName
@@ -220,6 +220,7 @@ output COSMOSDB_CONTAINER string = cosmosdb.outputs.cosmosDbContainer
 output COSMOSDB_CONFIG_CONTAINER string = cosmosdb.outputs.cosmosDbConfigContainer
 output ACS_ENDPOINT string = acs.outputs.acsEndpoint
 output ACS_TOPIC_RESOURCE_ID string = acs.outputs.acsTopicId
+output ACS_TOPIC_NAME string = acs.outputs.acsTopicName
 output ACS_CHANNEL_REGISTRATION_ID string = acsChannelRegistrationId
 output LOGIC_APPS_URL string = logicapp.outputs.approveServiceUrl
 output OPENTICKET_LOGIC_APPS_URL string = logicapp.outputs.openTicketUrl

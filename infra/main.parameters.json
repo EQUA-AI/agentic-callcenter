@@ -42,16 +42,16 @@
         "value": "${AZURE_SEARCH_INDEX_NAME=telcoagents}"
       },
       "foundryEndpoint": {
-        "value": "${AZURE_AI_FOUNDRY_ENDPOINT=}"
+        "value": "${AZURE_AI_FOUNDRY_ENDPOINT=https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni}"
       },
       "agentId": {
-        "value": "${AGENT_ID=}"
+        "value": "${AGENT_ID=asst_khFWOGAwaF7BJ73ecupCfXze}"
       },
       "useFoundryAgent": {
-        "value": "${USE_FOUNDRY_AGENT=false}"
+        "value": "${USE_FOUNDRY_AGENT=true}"
       },
       "acsChannelRegistrationId": {
-        "value": "${ACS_CHANNEL_REGISTRATION_ID=}"
+        "value": "${ACS_CHANNEL_REGISTRATION_ID=5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec}"
       }
     }
 }
