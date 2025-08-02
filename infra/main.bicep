@@ -46,6 +46,7 @@ param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 // Existing ACS resource parameters
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
+param existingEventGridTopicName string = 'AIWedding'
 param useExistingAcs bool = true
 
 var tags = {
@@ -137,6 +138,7 @@ module acs './acs.bicep' = {
     userAssignedIdentityResourceId: uami.outputs.identityId
     existingAcsName: existingAcsName
     existingAcsResourceGroup: existingAcsResourceGroup
+    existingEventGridTopicName: existingEventGridTopicName
     useExistingAcs: useExistingAcs
   }
 }
@@ -230,6 +232,8 @@ output ACS_ENDPOINT string = acs.outputs.acsEndpoint
 output ACS_TOPIC_RESOURCE_ID string = acs.outputs.acsTopicId
 output ACS_TOPIC_NAME string = acs.outputs.acsTopicName
 output ACS_CHANNEL_REGISTRATION_ID string = acsChannelRegistrationId
+output SERVICEBUS_NAMESPACE_NAME string = acs.outputs.sbNamespace
+output SERVICEBUS_CONNECTION_FQDN string = acs.outputs.sbNamespaceFQDN
 output LOGIC_APPS_URL string = logicapp.outputs.approveServiceUrl
 output OPENTICKET_LOGIC_APPS_URL string = logicapp.outputs.openTicketUrl
 output AZURE_OPENAI_MODEL string = openAIModel

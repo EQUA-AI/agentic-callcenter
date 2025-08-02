@@ -8,6 +8,7 @@ param location string = resourceGroup().location
 // Parameters for existing ACS resource
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
+param existingEventGridTopicName string = 'AIWedding'
 param useExistingAcs bool = true
 
 // Create new ACS resource only if not using existing
@@ -78,8 +79,14 @@ resource callQueue 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' =
   properties: {}
 }
 
-// An EventGrid topic to receive events from the communication service
-resource acsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = {
+// Reference to existing Event Grid system topic in the ACS resource group
+resource existingAcsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' existing = if (useExistingAcs) {
+  name: existingEventGridTopicName
+  scope: resourceGroup(existingAcsResourceGroup)
+}
+
+// For new ACS resources, create Event Grid system topic in the same resource group
+resource newAcsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = if (!useExistingAcs) {
   name: '${prefix}-acs-topic-${uniqueId}'
   location: 'global'
   identity: {
@@ -89,113 +96,25 @@ resource acsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = {
     }
   }
   properties: {
-    source: useExistingAcs ? '/subscriptions/${subscription().subscriptionId}/resourceGroups/${existingAcsResourceGroup}/providers/Microsoft.Communication/CommunicationServices/${existingAcsName}' : newAcs.id
+    source: newAcs.id
     topicType: 'Microsoft.Communication.CommunicationServices'
   }
 }
 
-// An EventGrid subscription to forward events to the service bus queue
-resource smsEGSub 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2023-12-15-preview' = {
-  name: '${prefix}-sms-sub-${uniqueId}'
-  parent: acsEGTopic
-  properties: {
-    deliveryWithResourceIdentity: {
-      identity: {
-        type: 'UserAssigned'
-        userAssignedIdentity: userAssignedIdentityResourceId
-      }
-      destination: {
-        endpointType: 'ServiceBusQueue'
-        properties: {
-          resourceId: smsQueue.id
-        }
-      }
-    }
-    eventDeliverySchema: 'EventGridSchema'
-    filter: {
-      includedEventTypes: [
-        'Microsoft.Communication.SMSReceived'
-      ]
-    }
-  }
-}
-// An EventGrid subscription to forward advanced messaging events to the service bus queue
-resource msgEGSub 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2023-12-15-preview' = {
-  name: '${prefix}-msg-sub-${uniqueId}'
-  parent: acsEGTopic
-  properties: {
-    deliveryWithResourceIdentity: {
-      identity: {
-        type: 'UserAssigned'
-        userAssignedIdentity: userAssignedIdentityResourceId
-      }
-      destination: {
-        endpointType: 'ServiceBusQueue'
-        properties: {
-          resourceId: advMsgQueue.id
-        }
-      }
-    }
-    eventDeliverySchema: 'EventGridSchema'
-    filter: {
-      includedEventTypes: [
-        'Microsoft.Communication.AdvancedMessageReceived'
-        'Microsoft.Communication.AdvancedMessageDeliveryStatusUpdated'
-        'Microsoft.Communication.AdvancedMessageChannelRegistrationStatusUpdated'
-        // Additional WhatsApp advanced messaging events
-        'Microsoft.Communication.ChatMessageReceived'
-        'Microsoft.Communication.ChatMessageEdited'
-        'Microsoft.Communication.ChatMessageDeleted'
-        'Microsoft.Communication.ChatThreadCreated'
-        'Microsoft.Communication.ChatThreadDeleted'
-        'Microsoft.Communication.ChatThreadPropertiesUpdated'
-        'Microsoft.Communication.ChatParticipantAddedToThread'
-        'Microsoft.Communication.ChatParticipantRemovedFromThread'
-      ]
-    }
-  }
-}
+// Use the appropriate Event Grid topic
+var eventGridTopic = useExistingAcs ? existingAcsEGTopic : newAcsEGTopic
 
-// An EventGrid subscription for voice/call events to the service bus queue
-resource callEGSub 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2023-12-15-preview' = {
-  name: '${prefix}-call-sub-${uniqueId}'
-  parent: acsEGTopic
-  properties: {
-    deliveryWithResourceIdentity: {
-      identity: {
-        type: 'UserAssigned'
-        userAssignedIdentity: userAssignedIdentityResourceId
-      }
-      destination: {
-        endpointType: 'ServiceBusQueue'
-        properties: {
-          resourceId: callQueue.id
-        }
-      }
-    }
-    eventDeliverySchema: 'EventGridSchema'
-    filter: {
-      includedEventTypes: [
-        'Microsoft.Communication.IncomingCall'
-        'Microsoft.Communication.CallEnded'
-        'Microsoft.Communication.CallConnectionStateChanged'
-        'Microsoft.Communication.CallTransferAccepted'
-        'Microsoft.Communication.CallTransferFailed'
-        'Microsoft.Communication.ParticipantsUpdated'
-        'Microsoft.Communication.RecordingFileStatusUpdated'
-        'Microsoft.Communication.PlayCompleted'
-        'Microsoft.Communication.PlayFailed'
-        'Microsoft.Communication.RecognizeCompleted'
-        'Microsoft.Communication.RecognizeFailed'
-      ]
-    }
-  }
-}
+// Note: Event Grid subscriptions to Service Bus queues across resource groups 
+// require special handling. For now, we'll skip creating subscriptions here
+// and handle them in a post-deployment script or separately.
+
+// The existing Event Grid topic in WeddingBotUS will need subscriptions created
+// manually or via separate deployment to forward events to our Service Bus queues.
 
 output acsName string = useExistingAcs ? existingAcsName : newAcs.name
 output acsEndpoint string = 'weddingus.unitedstates.communication.azure.com'
-output acsTopicName string = acsEGTopic.name
-output acsTopicId string = acsEGTopic.id
+output acsTopicName string = useExistingAcs ? existingEventGridTopicName : newAcsEGTopic.name
+output acsTopicId string = useExistingAcs ? resourceId(existingAcsResourceGroup, 'Microsoft.EventGrid/systemTopics', existingEventGridTopicName) : newAcsEGTopic.id
 // output acsEmailDomainName string = acsEmailDomain.name
 // output acsEmailSender string = 'donotreply@${acsEmailDomain.properties.mailFromSenderDomain}'
 output sbNamespace string = serviceBusNamespace.name

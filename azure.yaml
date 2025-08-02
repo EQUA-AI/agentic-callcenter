@@ -46,6 +46,7 @@ hooks:
         shell: pwsh
         run: |
             & ./.venv/bin/python ./infra/scripts/setup_voice_webhook.py
+            & ./.venv/bin/python ./infra/scripts/setup_eventgrid_subscriptions.py
             if (Test-Path "./api/requirements.txt") {
                 Write-Host "Installing API dependencies..."
                 Set-Location ./api

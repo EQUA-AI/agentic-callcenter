@@ -59,6 +59,9 @@
       "existingAcsResourceGroup": {
         "value": "${EXISTING_ACS_RESOURCE_GROUP=WeddingBotUS}"
       },
+      "existingEventGridTopicName": {
+        "value": "${EXISTING_EVENTGRID_TOPIC_NAME=AIWedding}"
+      },
       "useExistingAcs": {
         "value": "${USE_EXISTING_ACS=true}"
       }
