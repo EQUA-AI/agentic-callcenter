@@ -43,6 +43,11 @@ param useFoundryAgent string = 'true'
 // WhatsApp ACS parameters - only need the channel registration ID
 param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 
+// Existing ACS resource parameters
+param existingAcsName string = 'WeddingUS'
+param existingAcsResourceGroup string = 'WeddingBotUS'
+param useExistingAcs bool = true
+
 var tags = {
   'azd-env-name': environmentName
 }
@@ -130,6 +135,9 @@ module acs './acs.bicep' = {
     prefix: prefix
     userAssignedIdentityPrincipalId: uami.outputs.principalId
     userAssignedIdentityResourceId: uami.outputs.identityId
+    existingAcsName: existingAcsName
+    existingAcsResourceGroup: existingAcsResourceGroup
+    useExistingAcs: useExistingAcs
   }
 }
 

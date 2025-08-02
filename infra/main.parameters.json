@@ -52,6 +52,15 @@
       },
       "acsChannelRegistrationId": {
         "value": "${ACS_CHANNEL_REGISTRATION_ID=5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec}"
+      },
+      "existingAcsName": {
+        "value": "${EXISTING_ACS_NAME=WeddingUS}"
+      },
+      "existingAcsResourceGroup": {
+        "value": "${EXISTING_ACS_RESOURCE_GROUP=WeddingBotUS}"
+      },
+      "useExistingAcs": {
+        "value": "${USE_EXISTING_ACS=true}"
       }
     }
 }

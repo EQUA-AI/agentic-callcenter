@@ -7,6 +7,7 @@ param location string = resourceGroup().location
 
 // Parameters for existing ACS resource
 param existingAcsName string = 'WeddingUS'
+param existingAcsResourceGroup string = 'WeddingBotUS'
 param useExistingAcs bool = true
 
 // Create new ACS resource only if not using existing
@@ -88,7 +89,7 @@ resource acsEGTopic 'Microsoft.EventGrid/systemTopics@2023-12-15-preview' = {
     }
   }
   properties: {
-    source: useExistingAcs ? resourceId('Microsoft.Communication/CommunicationServices', existingAcsName) : newAcs.id
+    source: useExistingAcs ? '/subscriptions/${subscription().subscriptionId}/resourceGroups/${existingAcsResourceGroup}/providers/Microsoft.Communication/CommunicationServices/${existingAcsName}' : newAcs.id
     topicType: 'Microsoft.Communication.CommunicationServices'
   }
 }
@@ -192,7 +193,7 @@ resource callEGSub 'Microsoft.EventGrid/systemTopics/eventSubscriptions@2023-12-
 }
 
 output acsName string = useExistingAcs ? existingAcsName : newAcs.name
-output acsEndpoint string = 'https://weddingus.unitedstates.communication.azure.com/'
+output acsEndpoint string = 'weddingus.unitedstates.communication.azure.com'
 output acsTopicName string = acsEGTopic.name
 output acsTopicId string = acsEGTopic.id
 // output acsEmailDomainName string = acsEmailDomain.name
