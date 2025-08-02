@@ -47,7 +47,7 @@ param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
 param existingEventGridTopicName string = 'AIWedding'
-param existingAcsPrincipalId string = ''
+param existingAcsPrincipalId string = '9cd9654c-b954-42e8-9e62-9f0c3df8f7a3'
 param useExistingAcs bool = true
 
 var tags = {

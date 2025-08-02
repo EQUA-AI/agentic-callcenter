@@ -9,7 +9,7 @@ param location string = resourceGroup().location
 param existingAcsName string = 'WeddingUS'
 param existingAcsResourceGroup string = 'WeddingBotUS'
 param existingEventGridTopicName string = 'AIWedding'
-param existingAcsPrincipalId string = ''
+param existingAcsPrincipalId string = '9cd9654c-b954-42e8-9e62-9f0c3df8f7a3'
 param useExistingAcs bool = true
 
 // Create new ACS resource only if not using existing

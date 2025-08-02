@@ -63,7 +63,7 @@
         "value": "${EXISTING_EVENTGRID_TOPIC_NAME=AIWedding}"
       },
       "existingAcsPrincipalId": {
-        "value": "${AZURE_WEDDINGUS_PRINCIPAL_ID=}"
+        "value": "${AZURE_WEDDINGUS_PRINCIPAL_ID=9cd9654c-b954-42e8-9e62-9f0c3df8f7a3}"
       },
       "useExistingAcs": {
         "value": "${USE_EXISTING_ACS=true}"
