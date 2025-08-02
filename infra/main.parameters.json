@@ -14,10 +14,10 @@
       "runningOnGh": {
         "value": "${GITHUB_ACTIONS}"
       },
-      "openAiName": {
+      "openAIName": {
         "value": "${AZURE_OPENAI_NAME}"
       },
-      "openAiResourceGroupName": {
+      "openAIResourceGroupName": {
         "value": "${AZURE_OPENAI_RG}"
       },
       "emailRecipientAddress": {

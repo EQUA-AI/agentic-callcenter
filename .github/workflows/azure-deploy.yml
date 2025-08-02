@@ -54,6 +54,21 @@ jobs:
           azd config set auth.useAzCliAuth true
         shell: bash
 
+      # Create .env file for azd parameters
+      - name: Create .env file for azd
+        run: |
+          cat > .env << EOF
+          AZURE_ENV_NAME=${{ secrets.AZURE_ENV_NAME }}
+          AZURE_LOCATION=${{ secrets.AZURE_LOCATION }}
+          AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_PRINCIPAL_ID=${{ secrets.AZURE_PRINCIPAL_ID }}
+          AZURE_OPENAI_NAME=${{ secrets.OPENAI_NAME }}
+          AZURE_OPENAI_RG=${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+          EMAIL_RECIPIENT_ADDRESS=${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+          GITHUB_ACTIONS=true
+          EOF
+        shell: bash
+
       - name: Provision Infrastructure and Deploy Application
         run: azd up --no-prompt
         shell: bash
@@ -65,6 +80,7 @@ jobs:
           # Infrastructure parameters matching main.parameters.json
           AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
           AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+          AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
           AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
           AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
           EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
