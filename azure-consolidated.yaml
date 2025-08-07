@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: telco-callcenter-agents-consolidated
+services:
+    # Consolidated backend service (API + Functions)
+    backend:
+        project: consolidated-backend
+        host: containerapp
+        language: python
+        docker:
+            path: backend.dockerfile
+            remoteBuild: true
+    
+    # Consolidated frontend service (Voice + UI)
+    frontend:
+        project: consolidated-frontend
+        host: containerapp
+        language: python
+        docker:
+            path: frontend.dockerfile
+            remoteBuild: true
+
+hooks:
+    predeploy: 
+        shell: pwsh
+        run: |
+            python -m venv .venv
+            & ./.venv/bin/python -m pip install --upgrade pip
+            & ./.venv/bin/python -m pip install -r ./infra/scripts/requirements.txt
+
+            & ./.venv/bin/python ./infra/scripts/setup_aisearch.py
+            & ./.venv/bin/python ./infra/scripts/setup_cosmos.py
+        interactive: true
+        continueOnError: false
+    postdeploy: 
+        shell: pwsh
+        run: |
+            & ./.venv/bin/python ./infra/scripts/setup_voice_webhook.py
+            & ./.venv/bin/python ./infra/scripts/setup_eventgrid_subscriptions.py
+            Write-Host "Installing consolidated backend dependencies..."
+            Set-Location ./consolidated-backend
+            pip install -r requirements.txt
+            Set-Location ..
+            Write-Host "Installing consolidated frontend dependencies..."
+            Set-Location ./consolidated-frontend
+            pip install -r requirements.txt
+            Set-Location ..
+        interactive: true
+        continueOnError: false

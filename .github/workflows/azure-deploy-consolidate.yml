@@ -1,0 +1,316 @@
+name: Azure Consolidated Deployment
+
+on:
+  workflow_dispatch:
+  # Optionally enable push deployment - uncomment if desired
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'consolidated-backend/**'
+  #     - 'consolidated-frontend/**'
+  #     - 'azure-consolidated.yaml'
+  #     - 'infra/aca-consolidated.bicep'
+
+# Using federated credentials (user-assigned managed identity) authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # azd built-in secrets for federated authentication
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # Use the same environment as the original deployment
+      AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+      # OpenAI configuration (shared with original deployment)
+      OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
+      OPENAI_RESOURCE_GROUP_NAME: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+      EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # using the install-azd action
+      - name: Install azd
+        uses: Azure/setup-azd@v2.1.0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Login with federated credentials (managed identity)
+      - name: Log in with Azure (Federated Credentials)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Configure azd to use federated credentials from GitHub Actions
+      - name: Configure azd for federated credentials
+        run: |
+          azd config set auth.useAzCliAuth true
+        shell: bash
+
+      # Select existing azd environment for consolidated deployment
+      - name: Select existing azd environment for consolidated deployment
+        run: |
+          # Use the existing environment (same resource group, shared resources)
+          azd env select ${{ env.AZURE_ENV_NAME }}
+        shell: bash
+
+      # Create .env file for azd parameters (consolidated deployment in same environment)
+      - name: Create .env file for consolidated azd deployment
+        run: |
+          cat > .env << EOF
+          AZURE_ENV_NAME=${{ env.AZURE_ENV_NAME }}
+          AZURE_LOCATION=${{ env.AZURE_LOCATION }}
+          AZURE_SUBSCRIPTION_ID=${{ env.AZURE_SUBSCRIPTION_ID }}
+          AZURE_PRINCIPAL_ID=${{ secrets.AZURE_PRINCIPAL_ID }}
+          AZURE_OPENAI_NAME=${{ secrets.OPENAI_NAME }}
+          AZURE_OPENAI_RG=${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+          EMAIL_RECIPIENT_ADDRESS=${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+          GITHUB_ACTIONS=true
+          # Consolidated deployment specific settings
+          CONSOLIDATED_DEPLOYMENT=true
+          LOAD_BALANCING_MODE=single
+          EOF
+        shell: bash
+
+      # Copy azure-consolidated.yaml as azure.yaml for this deployment
+      - name: Configure consolidated deployment
+        run: |
+          # Backup original azure.yaml
+          cp azure.yaml azure-original.yaml.backup
+          # Use consolidated configuration for this deployment
+          cp azure-consolidated.yaml azure.yaml
+          # Use consolidated bicep infrastructure
+          cp infra/aca-consolidated.bicep infra/main-consolidated.bicep
+          # Update main.bicep to use consolidated infrastructure
+          cp infra/main.bicep infra/main-original.bicep.backup
+          # Create a main.bicep that references the consolidated infrastructure
+          cat > infra/main.bicep << 'EOL'
+          targetScope = 'resourceGroup'
+
+          @minLength(1)
+          @maxLength(64)
+          @description('Name of the environment that can be used as part of naming resource convention')
+          param environmentName string
+
+          @minLength(1)
+          @description('Primary location for all resources')
+          param location string
+
+          @description('Id of the user or app to assign application roles')
+          param principalId string
+
+          @description('The base name for all resources')
+          param baseName string = ''
+
+          @description('The name of the OpenAI resource')
+          param openAiName string
+
+          @description('The resource group name of the OpenAI resource')
+          param openAiResourceGroupName string
+
+          @description('The email address to send notifications to')
+          param emailRecipientAddress string
+
+          // Import the consolidated infrastructure
+          module consolidatedInfra 'aca-consolidated.bicep' = {
+            name: 'consolidated-infrastructure'
+            params: {
+              environmentName: environmentName
+              location: location
+              principalId: principalId
+              baseName: baseName
+              openAiName: openAiName
+              openAiResourceGroupName: openAiResourceGroupName
+              emailRecipientAddress: emailRecipientAddress
+            }
+          }
+
+          // Output the important resources for the consolidated deployment
+          output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = consolidatedInfra.outputs.AZURE_CONTAINER_APPS_ENVIRONMENT_ID
+          output BACKEND_URL string = consolidatedInfra.outputs.BACKEND_URL
+          output FRONTEND_URL string = consolidatedInfra.outputs.FRONTEND_URL
+          output AZURE_CONTAINER_REGISTRY_NAME string = consolidatedInfra.outputs.AZURE_CONTAINER_REGISTRY_NAME
+          output AZURE_CONTAINER_REGISTRY_ENDPOINT string = consolidatedInfra.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
+          EOL
+        shell: bash
+
+      # Preview the deployment first
+      - name: Preview consolidated deployment
+        run: |
+          echo "🔍 Previewing consolidated deployment changes..."
+          azd provision --preview
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ env.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
+          AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
+          AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
+          AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+          EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+          GITHUB_ACTIONS: "true"
+          CONSOLIDATED_DEPLOYMENT: "true"
+          LOAD_BALANCING_MODE: "single"
+
+      # Deploy the consolidated infrastructure and application
+      - name: Provision Infrastructure and Deploy Consolidated Application
+        run: |
+          echo "🚀 Deploying consolidated container apps..."
+          azd up --no-prompt
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_ENV_NAME: ${{ env.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
+          AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
+          AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
+          AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+          EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+          GITHUB_ACTIONS: "true"
+          CONSOLIDATED_DEPLOYMENT: "true"
+          LOAD_BALANCING_MODE: "single"
+          # Enable OIDC authentication for azd
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+
+      # Get deployment information
+      - name: Get consolidated deployment URLs
+        run: |
+          echo "📋 Consolidated Deployment Information:"
+          echo "Environment: ${{ env.AZURE_ENV_NAME }}"
+          echo "Resource Group: rg-${{ env.AZURE_ENV_NAME }}"
+          echo ""
+          echo "🔗 Application URLs:"
+          azd env get-values | grep -E "(BACKEND_URL|FRONTEND_URL)" || echo "URLs will be available after deployment completes"
+          echo ""
+          echo "📊 All Container Apps in Resource Group:"
+          az containerapp list --resource-group "rg-${{ env.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
+        shell: bash
+
+      # Validate deployment health
+      - name: Validate consolidated deployment health
+        run: |
+          echo "🏥 Checking deployment health..."
+          
+          # Wait a moment for services to start
+          sleep 30
+          
+          # Get the frontend URL for health check
+          FRONTEND_URL=$(azd env get-values | grep FRONTEND_URL | cut -d'=' -f2 | tr -d '"' || echo "")
+          BACKEND_URL=$(azd env get-values | grep BACKEND_URL | cut -d'=' -f2 | tr -d '"' || echo "")
+          
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "🌐 Testing Frontend URL: $FRONTEND_URL"
+            curl -f -s "$FRONTEND_URL/health" || echo "Frontend health check pending (container may still be starting)"
+          fi
+          
+          if [ -n "$BACKEND_URL" ]; then
+            echo "🔧 Testing Backend URL: $BACKEND_URL"  
+            curl -f -s "$BACKEND_URL/health" || echo "Backend health check pending (container may still be starting)"
+          fi
+          
+          echo ""
+          echo "✅ Consolidated deployment completed!"
+          echo "🔍 You now have both original (4 containers) and consolidated (2 containers) running in the same resource group"
+          echo "📊 You can compare performance and test functionality side by side"
+        shell: bash
+
+      # Restore original configuration files
+      - name: Restore original configuration files
+        run: |
+          # Restore original azure.yaml
+          if [ -f azure-original.yaml.backup ]; then
+            cp azure-original.yaml.backup azure.yaml
+            rm azure-original.yaml.backup
+          fi
+          
+          # Restore original main.bicep
+          if [ -f infra/main-original.bicep.backup ]; then
+            cp infra/main-original.bicep.backup infra/main.bicep
+            rm infra/main-original.bicep.backup
+          fi
+          
+          # Clean up temporary files
+          rm -f infra/main-consolidated.bicep
+        shell: bash
+        if: always() # Always restore, even if deployment fails
+
+  # Optional: Add a job to run tests against the consolidated deployment
+  test-consolidated:
+    runs-on: ubuntu-latest
+    needs: build
+    if: success()
+    env:
+
+        AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          pip install requests pytest
+        shell: bash
+
+      - name: Login to Azure for testing
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install azd for getting environment values
+        uses: Azure/setup-azd@v2.1.0
+
+      - name: Test consolidated deployment endpoints
+        run: |
+          echo "🧪 Running basic endpoint tests..."
+          
+          # Configure azd environment
+          azd env select ${{ env.AZURE_ENV_NAME }}
+          
+          # Get URLs from azd environment
+          FRONTEND_URL=$(azd env get-values | grep FRONTEND_URL | cut -d'=' -f2 | tr -d '"' || echo "")
+          BACKEND_URL=$(azd env get-values | grep BACKEND_URL | cut -d'=' -f2 | tr -d '"' || echo "")
+          
+          # Test basic endpoints
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "Testing Frontend health endpoint..."
+            curl -f "$FRONTEND_URL/health" && echo "✅ Frontend health check passed" || echo "❌ Frontend health check failed"
+            
+            echo "Testing Frontend root endpoint..."
+            curl -f "$FRONTEND_URL/" && echo "✅ Frontend root endpoint accessible" || echo "❌ Frontend root endpoint failed"
+          fi
+          
+          if [ -n "$BACKEND_URL" ]; then
+            echo "Testing Backend health endpoint..."
+            curl -f "$BACKEND_URL/health" && echo "✅ Backend health check passed" || echo "❌ Backend health check failed"
+            
+            echo "Testing Backend API docs endpoint..."
+            curl -f "$BACKEND_URL/docs" && echo "✅ Backend API docs accessible" || echo "❌ Backend API docs failed"
+          fi
+          
+          echo ""
+          echo "🎉 Basic tests completed!"
+          echo "📝 Manual testing can now be performed on the consolidated deployment"
+        shell: bash

@@ -167,6 +167,19 @@ cython_debug/
 chainlit.md
 .azure
 
+# Azure deployment temporary files
+*.backup
+*-original.*.backup
+infra/main-consolidated.bicep
+azure-original.yaml.backup
+infra/main-original.bicep.backup
+
+# Azure logs and deployment files
+azd-debug.log
+.azd/
+azd.log
+
 #extras
 test-scripts/
 extra-docs/
+.github/workflows/azure-deploy.yml
