@@ -25,8 +25,8 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      # Use the same environment as the original deployment
-      AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+      # Use the specific existing environment and resource group
+      AZURE_ENV_NAME: wedding-onmi-ai
       AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
       # OpenAI configuration (shared with original deployment)
       OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
@@ -62,15 +62,15 @@ jobs:
       # Select existing azd environment for consolidated deployment
       - name: Select existing azd environment for consolidated deployment
         run: |
-          # Use the existing environment (same resource group, shared resources)
-          azd env select ${{ env.AZURE_ENV_NAME }}
+          # Use the existing wedding-onmi-ai environment
+          azd env select wedding-onmi-ai
         shell: bash
 
       # Create .env file for azd parameters (consolidated deployment in same environment)
       - name: Create .env file for consolidated azd deployment
         run: |
           cat > .env << EOF
-          AZURE_ENV_NAME=${{ env.AZURE_ENV_NAME }}
+          AZURE_ENV_NAME=wedding-onmi-ai
           AZURE_LOCATION=${{ env.AZURE_LOCATION }}
           AZURE_SUBSCRIPTION_ID=${{ env.AZURE_SUBSCRIPTION_ID }}
           AZURE_PRINCIPAL_ID=${{ secrets.AZURE_PRINCIPAL_ID }}
@@ -156,7 +156,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_ENV_NAME: ${{ env.AZURE_ENV_NAME }}
+          AZURE_ENV_NAME: wedding-onmi-ai
           AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
           AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
           AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
@@ -176,7 +176,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_ENV_NAME: ${{ env.AZURE_ENV_NAME }}
+          AZURE_ENV_NAME: wedding-onmi-ai
           AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
           AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
           AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
@@ -193,14 +193,14 @@ jobs:
       - name: Get consolidated deployment URLs
         run: |
           echo "📋 Consolidated Deployment Information:"
-          echo "Environment: ${{ env.AZURE_ENV_NAME }}"
-          echo "Resource Group: rg-${{ env.AZURE_ENV_NAME }}"
+          echo "Environment: wedding-onmi-ai"
+          echo "Resource Group: rg-wedding-onmi-ai"
           echo ""
           echo "🔗 Application URLs:"
           azd env get-values | grep -E "(BACKEND_URL|FRONTEND_URL)" || echo "URLs will be available after deployment completes"
           echo ""
           echo "📊 All Container Apps in Resource Group:"
-          az containerapp list --resource-group "rg-${{ env.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
+          az containerapp list --resource-group "rg-wedding-onmi-ai" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
         shell: bash
 
       # Validate deployment health
@@ -257,8 +257,7 @@ jobs:
     needs: build
     if: success()
     env:
-
-        AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+      AZURE_ENV_NAME: wedding-onmi-ai
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -287,7 +286,7 @@ jobs:
           echo "🧪 Running basic endpoint tests..."
           
           # Configure azd environment
-          azd env select ${{ env.AZURE_ENV_NAME }}
+          azd env select wedding-onmi-ai
           
           # Get URLs from azd environment
           FRONTEND_URL=$(azd env get-values | grep FRONTEND_URL | cut -d'=' -f2 | tr -d '"' || echo "")
