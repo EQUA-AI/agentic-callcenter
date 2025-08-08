@@ -178,8 +178,8 @@ infra/main-original.bicep.backup
 azd-debug.log
 .azd/
 azd.log
+.github/workflows/azure-deploy.yml
 
 #extras
 test-scripts/
 extra-docs/
-.github/workflows/azure-deploy.yml

@@ -70,29 +70,74 @@ jobs:
           EOF
         shell: bash
 
-      # Configure consolidated deployment
-      - name: Configure consolidated deployment  
+      # Get existing resource information
+      - name: Get existing resource information
         run: |
-          # Backup original azure.yaml
-          cp azure.yaml azure-original.yaml.backup
-          # Use consolidated configuration for this deployment
-          cp azure-consolidated.yaml azure.yaml
-          # Backup original main.bicep
-          cp infra/main.bicep infra/main-original.bicep.backup
-          # Update main.bicep to use aca-consolidated instead of aca
-          sed 's/module aca '\''\.\/aca\.bicep'\''/module acaConsolidated '\''\.\/aca-consolidated\.bicep'\''/g' infra/main-original.bicep.backup > infra/main.bicep
+          # Get resource information from existing deployment
+          RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
+          
+          # Get Application Insights connection string
+          APPINSIGHTS_CONN=$(az monitor app-insights component show --app dev-appin-2wfnxagc7mn5g --resource-group $RG_NAME --query "connectionString" --output tsv)
+          echo "APPINSIGHTS_CONNECTION_STRING=$APPINSIGHTS_CONN" >> $GITHUB_ENV
+          
+          # Get User Assigned Identity client ID
+          UAMI_CLIENT_ID=$(az identity show --name devuami2wfnxagc7mn5g --resource-group $RG_NAME --query "clientId" --output tsv)
+          echo "UAMI_CLIENT_ID=$UAMI_CLIENT_ID" >> $GITHUB_ENV
+          
+          # Get Cognitive Services key
+          SPEECH_KEY=$(az cognitiveservices account keys list --name dev-cogsvc-2wfnxagc7mn5g --resource-group $RG_NAME --query "key1" --output tsv)
+          echo "SPEECH_KEY=$SPEECH_KEY" >> $GITHUB_ENV
+          
+          echo "Retrieved resource information successfully"
         shell: bash
 
-      # Deploy using azd - same pattern as original deployment
+      # Build and push container images
+      - name: Build and push consolidated container images
+        run: |
+          RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
+          ACR_NAME="devacr2wfnxagc7mn5g"
+          
+          # Login to ACR
+          az acr login --name $ACR_NAME
+          
+          # Build and push backend image (API + Functions)
+          echo "Building consolidated backend image..."
+          docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest ./consolidated-backend
+          docker push $ACR_NAME.azurecr.io/consolidated-backend:latest
+          
+          # Build and push frontend image (Voice + UI) 
+          echo "Building consolidated frontend image..."
+          docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest ./consolidated-frontend
+          docker push $ACR_NAME.azurecr.io/consolidated-frontend:latest
+          
+          # Set image names for Bicep deployment
+          echo "BACKEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-backend:latest" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-frontend:latest" >> $GITHUB_ENV
+        shell: bash
+
+      # Deploy using azd - consolidated deployment to existing environment
       - name: Provision Infrastructure and Deploy Consolidated Application
-        run: azd up --no-prompt
+        run: |
+          # Deploy consolidated containers to the existing environment
+          az deployment sub create \
+            --location ${{ secrets.AZURE_LOCATION }} \
+            --template-file infra/main-consolidated.bicep \
+            --parameters infra/main-consolidated.parameters.json \
+            --parameters environmentName=${{ secrets.AZURE_ENV_NAME }} \
+            --parameters location=${{ secrets.AZURE_LOCATION }} \
+            --parameters resourceGroupName=rg-${{ secrets.AZURE_ENV_NAME }} \
+            --parameters applicationInsightsConnectionString="$APPINSIGHTS_CONNECTION_STRING" \
+            --parameters userAssignedIdentityClientId="$UAMI_CLIENT_ID" \
+            --parameters speechServiceKey="$SPEECH_KEY" \
+            --parameters backendContainerImage="$BACKEND_IMAGE" \
+            --parameters frontendContainerImage="$FRONTEND_IMAGE" \
+            --name "consolidated-deployment-$(date +%Y%m%d%H%M%S)"
         shell: bash
         env:
-          # Azure credentials for azd to use - match original deployment
+          # Azure credentials for deployment
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # Infrastructure parameters matching main.parameters.json
           AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
           AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
           AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
@@ -100,7 +145,6 @@ jobs:
           AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
           EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
           GITHUB_ACTIONS: "true"
-          # Enable OIDC authentication for azd
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
           ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
           # uncomment this if you are using infrastructure parameters
@@ -120,18 +164,9 @@ jobs:
           az containerapp list --resource-group "rg-${{ secrets.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
         shell: bash
 
-      # Restore original configuration files
+            # Restore original configuration files
       - name: Restore original configuration files
         run: |
-          # Restore original azure.yaml
-          if [ -f azure-original.yaml.backup ]; then
-            cp azure-original.yaml.backup azure.yaml
-            rm azure-original.yaml.backup
-          fi
-          # Restore original main.bicep
-          if [ -f infra/main-original.bicep.backup ]; then
-            cp infra/main-original.bicep.backup infra/main.bicep
-            rm infra/main-original.bicep.backup
-          fi
+          echo "Deployment completed. Consolidated containers should now be running alongside the original containers."
         shell: bash
         if: always() # Always restore, even if deployment fails
