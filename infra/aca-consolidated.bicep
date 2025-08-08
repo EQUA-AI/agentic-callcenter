@@ -28,6 +28,9 @@ param useFoundryAgent string = 'false'
 // WhatsApp ACS parameters
 param acsChannelRegistrationId string = ''
 
+// Event Grid parameters
+param existingEventGridTopicName string = 'AIWedding'
+
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logAnalyticsWorkspaceName
 }
@@ -199,13 +202,23 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
 
 // ===== OUTPUTS =====
 
-output backendUrl string = 'https://${backendContainerApp.properties.configuration.ingress.fqdn}'
-output frontendUrl string = 'https://${frontendContainerApp.properties.configuration.ingress.fqdn}'
-output containerAppEnvironmentId string = containerAppEnv.id
+output BACKEND_URL string = 'https://${backendContainerApp.properties.configuration.ingress.fqdn}'
+output FRONTEND_URL string = 'https://${frontendContainerApp.properties.configuration.ingress.fqdn}'
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppEnv.id
+output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = '${containerRegistry}.azurecr.io'
+
+// Event Grid output for scripts
+output EVENTGRID_TOPIC_NAME string = existingEventGridTopicName
 
 // Service discovery outputs (ready for future load balancing)
 output backendName string = backendContainerApp.name
 output frontendName string = frontendContainerApp.name
+
+// Legacy outputs for compatibility
+output backendUrl string = 'https://${backendContainerApp.properties.configuration.ingress.fqdn}'
+output frontendUrl string = 'https://${frontendContainerApp.properties.configuration.ingress.fqdn}'
+output containerAppEnvironmentId string = containerAppEnv.id
 
 // Future scaling outputs (commented for now)
 // output backendSecondaryUrl string = 'https://${backendSecondaryContainerApp.properties.configuration.ingress.fqdn}'
