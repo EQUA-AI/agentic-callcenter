@@ -6,34 +6,40 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
+COPY consolidated-backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy consolidated backend application code
+COPY consolidated-backend/app.py .
 
-# Copy shared utilities from parent directories
-COPY ../api/routers ./routers
-COPY ../api/utils ./utils
-COPY ../api/foundry_agent.py ./
-COPY ../api/conversation_store.py ./
+# Copy shared utilities and routers from parent directories
+COPY api/routers ./routers
+COPY api/utils ./utils
+COPY api/conversation_store.py .
+COPY api/foundry_agent.py .
+
+# Copy functions code
+COPY functions/foundry_agent.py ./functions_foundry_agent.py
+COPY functions/function_app.py ./function_app.py
 
 # Create logs directory
 RUN mkdir -p /app/logs
 
-# Expose port
-EXPOSE 80
-
 # Set environment variables
+ENV PYTHONPATH=/app
+ENV PORT=8000
 ENV PYTHONUNBUFFERED=1
-ENV AZURE_FUNCTIONS_ENVIRONMENT=Production
+
+# Expose port
+EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:80/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 # Start the application
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

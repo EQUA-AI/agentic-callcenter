@@ -100,14 +100,14 @@ jobs:
           # Login to ACR
           az acr login --name $ACR_NAME
           
-          # Build and push backend image (API + Functions)
+          # Build and push backend image (API + Functions) from root context
           echo "Building consolidated backend image..."
-          docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest ./consolidated-backend
+          docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest .
           docker push $ACR_NAME.azurecr.io/consolidated-backend:latest
           
-          # Build and push frontend image (Voice + UI) 
+          # Build and push frontend image (Voice + UI) from root context
           echo "Building consolidated frontend image..."
-          docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest ./consolidated-frontend
+          docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest .
           docker push $ACR_NAME.azurecr.io/consolidated-frontend:latest
           
           # Set image names for Bicep deployment
@@ -115,7 +115,7 @@ jobs:
           echo "FRONTEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-frontend:latest" >> $GITHUB_ENV
         shell: bash
 
-      # Deploy using azd - consolidated deployment to existing environment
+      # Deploy using direct Azure CLI - consolidated deployment to existing environment
       - name: Provision Infrastructure and Deploy Consolidated Application
         run: |
           # Deploy consolidated containers to the existing environment
@@ -134,21 +134,9 @@ jobs:
             --name "consolidated-deployment-$(date +%Y%m%d%H%M%S)"
         shell: bash
         env:
-          # Azure credentials for deployment
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
-          AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
-          AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
-          AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
-          AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
-          EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
-          GITHUB_ACTIONS: "true"
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          # uncomment this if you are using infrastructure parameters
-          AZD_INITIAL_ENVIRONMENT_CONFIG: ${{ secrets.AZD_INITIAL_ENVIRONMENT_CONFIG }}
 
       # Get deployment information
       - name: Get consolidated deployment URLs
@@ -158,15 +146,17 @@ jobs:
           echo "Resource Group: rg-${{ secrets.AZURE_ENV_NAME }}"
           echo ""
           echo "🔗 Application URLs:"
-          azd env get-values | grep -E "(BACKEND_URL|FRONTEND_URL)" || echo "URLs will be available after deployment completes"
           echo ""
           echo "📊 All Container Apps in Resource Group:"
           az containerapp list --resource-group "rg-${{ secrets.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
         shell: bash
 
-            # Restore original configuration files
-      - name: Restore original configuration files
+      # Deployment completion message
+      - name: Deployment Summary
         run: |
-          echo "Deployment completed. Consolidated containers should now be running alongside the original containers."
+          echo "✅ Deployment completed successfully!"
+          echo "Consolidated containers should now be running alongside the original containers."
+          echo "Backend container: consolidated-backend"
+          echo "Frontend container: consolidated-frontend"
         shell: bash
-        if: always() # Always restore, even if deployment fails
+        if: always() # Always show summary, even if deployment fails

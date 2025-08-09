@@ -75,7 +75,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: {
         external: false  // Internal access only
-        targetPort: 80
+        targetPort: 8000
         transport: 'auto'
       }
       registries: [
@@ -147,7 +147,7 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: {
         external: true  // External access for voice webhooks and UI
-        targetPort: 80
+        targetPort: 8080
         transport: 'auto'
         allowInsecure: false
       }
