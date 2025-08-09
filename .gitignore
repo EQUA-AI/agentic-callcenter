@@ -170,7 +170,6 @@ chainlit.md
 # Azure deployment temporary files
 *.backup
 *-original.*.backup
-infra/main-consolidated.bicep
 azure-original.yaml.backup
 infra/main-original.bicep.backup
 
