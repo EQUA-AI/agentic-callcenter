@@ -37,7 +37,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
 
 // Container App Environment
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' = {
-  name: '${prefix}-containerAppEnv-${uniqueId}'
+  name: 'con-env-${uniqueId}'
   location: location
   identity: {
     type: 'UserAssigned'
@@ -60,7 +60,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-11-02-preview' 
 
 // Primary Backend Service (API + Functions) - Scalable design for future load balancing
 resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
-  name: '${prefix}-backend-${uniqueId}'
+  name: 'con-backend-${uniqueId}'
   location: location
   tags: {'azd-service-name': 'backend' }
   identity: {
@@ -132,7 +132,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
 
 // Frontend Service (Voice + UI)
 resource frontendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
-  name: '${prefix}-frontend-${uniqueId}'
+  name: 'con-frontend-${uniqueId}'
   location: location
   tags: {'azd-service-name': 'frontend' }
   identity: {
