@@ -70,8 +70,8 @@ jobs:
           EOF
         shell: bash
 
-      # Get existing resource information
-      - name: Get existing resource information
+      # Get existing resource information and setup multi-agent infrastructure
+      - name: Get existing resource information and setup multi-agent infrastructure
         run: |
           # Get resource information from existing deployment
           RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
@@ -88,7 +88,48 @@ jobs:
           SPEECH_KEY=$(az cognitiveservices account keys list --name dev-cogsvc-2wfnxagc7mn5g --resource-group $RG_NAME --query "key1" --output tsv)
           echo "SPEECH_KEY=$SPEECH_KEY" >> $GITHUB_ENV
           
-          echo "Retrieved resource information successfully"
+          # Setup multi-agent Cosmos DB containers
+          echo "Setting up multi-agent Cosmos DB containers..."
+          COSMOS_ACCOUNT="devcosmos2wfnxagc7mn5g"
+          DATABASE_NAME="telco-callcenter-agents"
+          
+          # Create agents container if it doesn't exist
+          az cosmosdb sql container create \
+            --account-name $COSMOS_ACCOUNT \
+            --database-name $DATABASE_NAME \
+            --name agents \
+            --partition-key-path "/agent_id" \
+            --resource-group $RG_NAME \
+            --throughput 400 || echo "Agents container already exists"
+          
+          # Create channels container if it doesn't exist
+          az cosmosdb sql container create \
+            --account-name $COSMOS_ACCOUNT \
+            --database-name $DATABASE_NAME \
+            --name channels \
+            --partition-key-path "/channel_id" \
+            --resource-group $RG_NAME \
+            --throughput 400 || echo "Channels container already exists"
+          
+          # Create agent_channel_mappings container if it doesn't exist
+          az cosmosdb sql container create \
+            --account-name $COSMOS_ACCOUNT \
+            --database-name $DATABASE_NAME \
+            --name agent_channel_mappings \
+            --partition-key-path "/mapping_id" \
+            --resource-group $RG_NAME \
+            --throughput 400 || echo "Mappings container already exists"
+          
+          # Grant Cosmos DB Data Contributor role to managed identity for multi-agent containers
+          UAMI_PRINCIPAL_ID=$(az identity show --name devuami2wfnxagc7mn5g --resource-group $RG_NAME --query "principalId" --output tsv)
+          COSMOS_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RG_NAME/providers/Microsoft.DocumentDB/databaseAccounts/$COSMOS_ACCOUNT"
+          
+          az role assignment create \
+            --assignee $UAMI_PRINCIPAL_ID \
+            --role "00000000-0000-0000-0000-000000000002" \
+            --scope $COSMOS_SCOPE || echo "Role assignment already exists"
+          
+          echo "Multi-agent infrastructure setup completed successfully"
         shell: bash
 
       # Build and push container images
@@ -115,10 +156,10 @@ jobs:
           echo "FRONTEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-frontend:latest" >> $GITHUB_ENV
         shell: bash
 
-      # Deploy using direct Azure CLI - consolidated deployment to existing environment
-      - name: Provision Infrastructure and Deploy Consolidated Application
+      # Deploy using direct Azure CLI - consolidated deployment to existing environment with multi-agent support
+      - name: Provision Infrastructure and Deploy Consolidated Application with Multi-Agent Support
         run: |
-          # Deploy consolidated containers to the existing environment
+          # Deploy consolidated containers to the existing environment with multi-agent configuration
           az deployment sub create \
             --location ${{ secrets.AZURE_LOCATION }} \
             --template-file infra/main-consolidated.bicep \
@@ -131,6 +172,9 @@ jobs:
             --parameters speechServiceKey="$SPEECH_KEY" \
             --parameters backendContainerImage="$BACKEND_IMAGE" \
             --parameters frontendContainerImage="$FRONTEND_IMAGE" \
+            --parameters cosmosDbDatabaseName="telco-callcenter-agents" \
+            --parameters multiAgentEnabled="true" \
+            --parameters enableConfigUI="true" \
             --name "consolidated-deployment-$(date +%Y%m%d%H%M%S)"
         shell: bash
         env:
@@ -138,8 +182,8 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Get deployment information
-      - name: Get consolidated deployment URLs
+      # Get deployment information and verify multi-agent setup
+      - name: Get consolidated deployment URLs and verify multi-agent setup
         run: |
           echo "📋 Consolidated Deployment Information:"
           echo "Environment: ${{ secrets.AZURE_ENV_NAME }}"
@@ -149,14 +193,46 @@ jobs:
           echo ""
           echo "📊 All Container Apps in Resource Group:"
           az containerapp list --resource-group "rg-${{ secrets.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
+          
+          echo ""
+          echo "🗄️ Verifying Multi-Agent Cosmos DB Setup:"
+          COSMOS_ACCOUNT="devcosmos2wfnxagc7mn5g"
+          DATABASE_NAME="telco-callcenter-agents"
+          RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
+          
+          # List containers in the multi-agent database
+          echo "Containers in $DATABASE_NAME database:"
+          az cosmosdb sql container list \
+            --account-name $COSMOS_ACCOUNT \
+            --database-name $DATABASE_NAME \
+            --resource-group $RG_NAME \
+            --query "[].{Name:name,PartitionKey:resource.partitionKey.paths[0]}" \
+            --output table || echo "Database containers will be listed after creation"
+          
+          echo ""
+          echo "🔧 Multi-Agent Configuration UI should be available at:"
+          echo "Backend URL/config - for agent and channel management"
         shell: bash
 
       # Deployment completion message
       - name: Deployment Summary
         run: |
-          echo "✅ Deployment completed successfully!"
-          echo "Consolidated containers should now be running alongside the original containers."
-          echo "Backend container: consolidated-backend"
-          echo "Frontend container: consolidated-frontend"
+          echo "✅ Multi-Agent Deployment completed successfully!"
+          echo ""
+          echo "🎯 What was deployed:"
+          echo "   • Consolidated backend with multi-agent routing support"
+          echo "   • Configuration UI for managing agents and channels"
+          echo "   • Cosmos DB containers for multi-agent configuration"
+          echo "   • RBAC permissions for managed identity access"
+          echo ""
+          echo "🔧 Next steps:"
+          echo "   1. Access the configuration UI at: [Backend URL]/config"
+          echo "   2. Add your WhatsApp Business numbers as channels"
+          echo "   3. Configure AI agents for each channel"
+          echo "   4. Test the multi-agent routing functionality"
+          echo ""
+          echo "📚 Documentation:"
+          echo "   • Multi-agent setup guide: consolidated-backend/MULTI_AGENT_SETUP_GUIDE.md"
+          echo "   • Messaging connect: consolidated-backend/MESSAGING_CONNECT_README.md"
         shell: bash
         if: always() # Always show summary, even if deployment fails

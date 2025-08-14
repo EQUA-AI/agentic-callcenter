@@ -40,6 +40,11 @@ param speechServiceKey string = 'placeholder'
 param backendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 param frontendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+// Multi-agent configuration parameters
+param cosmosDbDatabaseName string = 'telco-callcenter-agents'
+param multiAgentEnabled string = 'true'
+param enableConfigUI string = 'true'
+
 // Create or reference the resource group with proper tags
 resource rg 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: resourceGroupName
@@ -60,8 +65,10 @@ module acaConsolidated './aca-consolidated.bicep' = {
     userAssignedIdentityClientId: userAssignedIdentityClientId
     openAiEndpoint: 'https://openai-wedding.openai.azure.com/'
     cosmosDbEndpoint: 'https://devcosmos2wfnxagc7mn5g.documents.azure.com:443/'
-    cosmosDbDatabase: 'conversations'
+    cosmosDbDatabase: cosmosDbDatabaseName
     cosmosDbContainer: 'chat_sessions'
+    multiAgentEnabled: multiAgentEnabled
+    enableConfigUI: enableConfigUI
     applicationInsightsConnectionString: applicationInsightsConnectionString
     containerRegistry: 'devacr2wfnxagc7mn5g'
     logAnalyticsWorkspaceName: 'dev-law-2wfnxagc7mn5g'

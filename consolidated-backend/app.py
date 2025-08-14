@@ -82,10 +82,13 @@ from multi_agent_router import get_multi_agent_router
 
 app.include_router(conversation_router)
 app.include_router(integration_router)
-app.include_router(config_ui_router)
+app.include_router(config_ui_router, prefix="/config")
 
 # Initialize multi-agent router
 multi_agent_router = get_multi_agent_router()
+
+# Initialize multi-agent router
+# multi_agent_router = get_multi_agent_router()
 
 @app.get("/health")
 async def health_check():

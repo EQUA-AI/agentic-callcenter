@@ -36,6 +36,10 @@ param smsChannelId string = ''
 // Event Grid parameters
 param existingEventGridTopicName string = 'AIWedding'
 
+// Multi-agent configuration parameters
+param multiAgentEnabled string = 'true'
+param enableConfigUI string = 'true'
+
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logAnalyticsWorkspaceName
 }
@@ -131,6 +135,10 @@ resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
             { name: 'SPEECH_KEY', value: speechServiceKey }
             { name: 'SPEECH_REGION', value: location }
             { name: 'COGNITIVE_SERVICE_ENDPOINT', value: cognitiveServiceEndpoint }
+            // Multi-agent configuration
+            { name: 'MULTI_AGENT_ENABLED', value: multiAgentEnabled }
+            { name: 'ENABLE_CONFIG_UI', value: enableConfigUI }
+            { name: 'COSMOS_DATABASE_NAME', value: cosmosDbDatabase }
           ]
         }
       ]
