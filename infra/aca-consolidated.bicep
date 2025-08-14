@@ -28,6 +28,11 @@ param useFoundryAgent string = 'false'
 // WhatsApp ACS parameters
 param acsChannelRegistrationId string = ''
 
+// Messaging Connect parameters
+param messagingConnectEnabled bool = true
+param whatsappChannelId string = ''
+param smsChannelId string = ''
+
 // Event Grid parameters
 param existingEventGridTopicName string = 'AIWedding'
 
@@ -110,6 +115,11 @@ resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
             { name: 'ACS_ENDPOINT', value: acsEndpoint }
             { name: 'ACS_CHANNEL_REGISTRATION_ID', value: acsChannelRegistrationId }
             { name: 'ServiceBusConnection__fullyQualifiedNamespace', value: serviceBusNamespaceFqdn }
+            // Messaging Connect configuration
+            { name: 'MESSAGING_CONNECT_ENABLED', value: string(messagingConnectEnabled) }
+            { name: 'MESSAGING_CONNECT_ENDPOINT', value: '${acsEndpoint}/messaging/connect/v1' }
+            { name: 'WHATSAPP_CHANNEL_ID', value: !empty(whatsappChannelId) ? whatsappChannelId : acsChannelRegistrationId }
+            { name: 'SMS_CHANNEL_ID', value: smsChannelId }  // Infobip SMS channel ID
             // Foundry agent configuration
             { name: 'AZURE_AI_FOUNDRY_ENDPOINT', value: foundryEndpoint }
             { name: 'AGENT_ID', value: agentId }

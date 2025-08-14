@@ -11,6 +11,8 @@ import azure.functions as func
 import logging
 import os
 import json
+import aiohttp
+import uvicorn
 from typing import Dict, Optional
 from dotenv import load_dotenv
 
@@ -72,12 +74,237 @@ async def validation_exception_handler(request, exc):
         content={"detail": exc.errors()},
     )
 
-# Import existing routers with multi-tenant support
+# Import routers and services
 from routers.conversation import conversation_router
 from routers.integration import integration_router
+from routers.config_ui import config_ui_router
+from multi_agent_router import get_multi_agent_router
 
 app.include_router(conversation_router)
 app.include_router(integration_router)
+app.include_router(config_ui_router)
+
+# Initialize multi-agent router
+multi_agent_router = get_multi_agent_router()
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    messaging_status = messaging_connect_service.get_status() if messaging_connect_service else {"enabled": False}
+    routing_stats = multi_agent_router.get_routing_stats()
+    
+    return {
+        "status": "healthy",
+        "messaging_connect": messaging_status,
+        "multi_agent_routing": routing_stats,
+        "acs_endpoint": acs_endpoint,
+        "service": "consolidated-backend",
+        "endpoints": {
+            "config_dashboard": "/config/",
+            "messaging_connect_sms": "/messaging-connect/test-sms",
+            "messaging_connect_whatsapp": "/messaging-connect/test-whatsapp",
+            "messaging_connect_status": "/messaging-connect/status",
+            "multi_agent_route": "/route/message",
+            "routing_stats": "/route/stats"
+        }
+    }
+
+@app.post("/route/message")
+async def route_message(request: Request):
+    """
+    Route an incoming message to the appropriate AI agent
+    
+    Expected payload:
+    {
+        "from": "+1234567890",
+        "to": "+0987654321", 
+        "message": "Hello, I need help with my wedding planning",
+        "conversation_id": "optional_conversation_id"
+    }
+    """
+    try:
+        data = await request.json()
+        
+        from_phone = data.get('from')
+        to_phone = data.get('to')
+        message_content = data.get('message')
+        conversation_id = data.get('conversation_id')
+        
+        if not all([from_phone, to_phone, message_content]):
+            return {
+                "success": False,
+                "error": "Missing required fields: from, to, message",
+                "service": "multi_agent_router"
+            }
+        
+        # Process message through multi-agent router
+        result = await multi_agent_router.process_message(
+            from_phone=from_phone,
+            to_phone=to_phone,
+            message_content=message_content,
+            conversation_id=conversation_id
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Message routing failed: {e}")
+        return {"success": False, "error": str(e), "service": "multi_agent_router"}
+
+@app.get("/route/stats")
+async def routing_stats():
+    """Get multi-agent routing statistics"""
+    try:
+        stats = multi_agent_router.get_routing_stats()
+        validation = multi_agent_router.validate_routing_config()
+        
+        return {
+            "routing_stats": stats,
+            "validation": validation,
+            "service": "multi_agent_router"
+        }
+    except Exception as e:
+        logger.error(f"Failed to get routing stats: {e}")
+        return {"error": str(e), "service": "multi_agent_router"}
+
+@app.get("/route/agent/{phone_number}")
+async def get_agent_for_phone(phone_number: str):
+    """Get agent configuration for a specific phone number"""
+    try:
+        if not phone_number.startswith('+'):
+            phone_number = '+' + phone_number
+            
+        routing_info = multi_agent_router.get_agent_for_message(
+            from_phone="+1000000000",  # Dummy from number
+            to_phone=phone_number,
+            message_content="test"
+        )
+        
+        if not routing_info:
+            return {
+                "success": False,
+                "error": f"No agent configured for phone number {phone_number}",
+                "service": "multi_agent_router"
+            }
+        
+        return {
+            "success": True,
+            "phone_number": phone_number,
+            "routing_info": routing_info,
+            "service": "multi_agent_router"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get agent for phone {phone_number}: {e}")
+        return {"success": False, "error": str(e), "service": "multi_agent_router"}
+
+@app.post("/messaging-connect/test-sms")
+async def test_infobip_sms(request: Request):
+    """Test Infobip SMS via Messaging Connect"""
+    try:
+        body = await request.json()
+        phone_number = body.get("phone_number")
+        message = body.get("message", "Test SMS from Infobip via ACS Messaging Connect")
+        channel_id = body.get("channel_id")  # Optional, will use SMS_CHANNEL_ID if not provided
+        
+        if not messaging_connect_service.is_enabled():
+            return {
+                "success": False,
+                "error": "Messaging Connect not enabled",
+                "service": "messaging_connect"
+            }
+        
+        if not phone_number:
+            return {
+                "success": False,
+                "error": "phone_number is required (E.164 format, e.g. +1234567890)",
+                "service": "messaging_connect"
+            }
+        
+        result = await messaging_connect_service.send_sms(phone_number, message, channel_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Infobip SMS test failed: {e}")
+        return {"error": str(e), "success": False, "service": "messaging_connect"}
+
+@app.post("/messaging-connect/test-whatsapp")
+async def test_infobip_whatsapp(request: Request):
+    """Test Infobip WhatsApp via Messaging Connect"""
+    try:
+        body = await request.json()
+        phone_number = body.get("phone_number")
+        message = body.get("message", "Test WhatsApp from Infobip via ACS Messaging Connect")
+        channel_id = body.get("channel_id")  # Optional, will use WHATSAPP_CHANNEL_ID if not provided
+        
+        if not messaging_connect_service.is_enabled():
+            return {
+                "success": False,
+                "error": "Messaging Connect not enabled",
+                "service": "messaging_connect"
+            }
+        
+        if not phone_number:
+            return {
+                "success": False,
+                "error": "phone_number is required (E.164 format, e.g. +1234567890)",
+                "service": "messaging_connect"
+            }
+        
+        result = await messaging_connect_service.send_whatsapp(phone_number, message, channel_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Infobip WhatsApp test failed: {e}")
+        return {"error": str(e), "success": False, "service": "messaging_connect"}
+
+@app.get("/messaging-connect/status")
+async def messaging_connect_status():
+    """Get Messaging Connect configuration status"""
+    try:
+        status = messaging_connect_service.get_status()
+        return {
+            "service": "messaging_connect",
+            "configuration": status,
+            "endpoints": {
+                "test_sms": "/messaging-connect/test-sms",
+                "test_whatsapp": "/messaging-connect/test-whatsapp"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        return {"error": str(e), "success": False}
+
+@app.post("/messaging-connect/test")
+async def test_messaging_connect(request: Request):
+    """Legacy test endpoint - use specific test-sms or test-whatsapp endpoints instead"""
+    try:
+        return {
+            "message": "This is a legacy endpoint. Use /messaging-connect/test-sms or /messaging-connect/test-whatsapp instead",
+            "endpoints": {
+                "sms": "/messaging-connect/test-sms",
+                "whatsapp": "/messaging-connect/test-whatsapp",
+                "status": "/messaging-connect/status"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Messaging Connect test failed: {e}")
+        return {"error": str(e), "success": False, "service": "messaging_connect"}
+
+@app.post("/messaging/test")
+async def test_messaging(request: Request):
+    """Test traditional ACS messaging (existing WhatsApp functionality)"""
+    try:
+        return {
+            "message": "This endpoint tests traditional ACS WhatsApp messaging",
+            "messaging_connect_enabled": messaging_connect_enabled,
+            "current_messaging": "Traditional ACS WhatsApp",
+            "note": "Use /messaging-connect/test for Messaging Connect testing"
+        }
+        
+    except Exception as e:
+        logger.error(f"Test messaging failed: {e}")
+        return {"error": str(e), "success": False}
 
 # Azure Functions integration
 function_app = func.FunctionApp()
@@ -93,6 +320,12 @@ messaging_client = NotificationMessagesClient(
     endpoint=acs_endpoint,
     credential=DefaultAzureCredential()
 )
+
+# Messaging Connect using REST API (separate from existing WhatsApp)
+from messaging_connect import get_messaging_connect_service
+messaging_connect_service = get_messaging_connect_service()
+messaging_connect_enabled = messaging_connect_service.is_enabled()
+logger.info(f"Messaging Connect enabled: {messaging_connect_enabled}")
 
 # Whisper client for transcription
 from openai import AzureOpenAI
@@ -175,7 +408,7 @@ async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
         
         logger.info(f"New messages: {new_messages}")
         
-        # Send responses to the user (exactly like original)
+        # Send responses to the user (keep existing WhatsApp functionality)
         for message in new_messages:
             if ('name' in message and message['name'] == "Customer") or message['role'] == "user":
                 continue

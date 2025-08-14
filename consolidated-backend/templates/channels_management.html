@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Channels Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Messaging Channels Management</h2>
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="openModal('addChannelModal')" class="btn">Add New Channel</button>
+            <div style="margin-left: auto;">
+                <a href="/config/channels" class="btn btn-secondary {% if not filter_type %}active{% endif %}">All</a>
+                <a href="/config/channels?channel_type=whatsapp" class="btn btn-secondary {% if filter_type == 'whatsapp' %}active{% endif %}">WhatsApp</a>
+                <a href="/config/channels?channel_type=sms" class="btn btn-secondary {% if filter_type == 'sms' %}active{% endif %}">SMS</a>
+            </div>
+        </div>
+    </div>
+    <div class="card-content">
+        {% if channels %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Channel ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Phone Number</th>
+                        <th>Business Name</th>
+                        <th>Provider</th>
+                        <th>Agent Mappings</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for channel in channels %}
+                    <tr>
+                        <td><code>{{ channel.channel_id }}</code></td>
+                        <td><strong>{{ channel.channel_name }}</strong></td>
+                        <td>
+                            {% if channel.channel_type == 'whatsapp' %}
+                                <span class="badge badge-success">WhatsApp</span>
+                            {% else %}
+                                <span class="badge badge-info">SMS</span>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ channel.phone_number }}</code></td>
+                        <td>{{ channel.business_name or 'N/A' }}</td>
+                        <td>{{ channel.provider|title }}</td>
+                        <td>
+                            {% if channel.agent_mappings %}
+                                {% for mapping in channel.agent_mappings %}
+                                    <div style="margin-bottom: 0.25rem;">
+                                        <span class="badge {% if mapping.is_primary %}badge-success{% else %}badge-info{% endif %}">
+                                            {{ mapping.agent.agent_name }}
+                                            {% if mapping.is_primary %}(Primary){% endif %}
+                                        </span>
+                                        <button onclick="removeMapping('{{ mapping.mapping_id }}')" class="btn btn-danger" style="font-size: 0.7rem; padding: 0.1rem 0.3rem; margin-left: 0.25rem;">×</button>
+                                    </div>
+                                {% endfor %}
+                                <button onclick="openAddMappingModal('{{ channel.channel_id }}')" class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.2rem 0.4rem;">+ Add Agent</button>
+                            {% else %}
+                                <div style="color: #dc3545; font-size: 0.9rem;">No agents assigned</div>
+                                <button onclick="openAddMappingModal('{{ channel.channel_id }}')" class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.2rem 0.4rem;">Assign Agent</button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if channel.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-warning">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button onclick="editChannel('{{ channel.channel_id }}')" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">Edit</button>
+                            <form method="post" action="/config/channels/{{ channel.channel_id }}/delete" style="display: inline;" onsubmit="return confirmDelete('Are you sure you want to delete channel {{ channel.channel_name }}? This will remove all associated agent mappings.')">
+                                <button type="submit" class="btn btn-danger" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                <strong>No channels configured yet.</strong><br>
+                Add your first messaging channel to connect your WhatsApp Business numbers with AI agents.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Channel Modal -->
+<div id="addChannelModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('addChannelModal')">&times;</span>
+        <h2>Add New Channel</h2>
+        <form method="post" action="/config/channels/add">
+            <div class="form-group">
+                <label for="channel_id">Channel ID:</label>
+                <input type="text" id="channel_id" name="channel_id" placeholder="wedding-whatsapp-001" required>
+                <small style="color: #666;">Unique identifier for this channel</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="channel_name">Channel Name:</label>
+                <input type="text" id="channel_name" name="channel_name" placeholder="Wedding Business WhatsApp" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="channel_type">Channel Type:</label>
+                <select id="channel_type" name="channel_type" required>
+                    <option value="">Select channel type...</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="sms">SMS</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="provider">Provider:</label>
+                <select id="provider" name="provider" required>
+                    <option value="">Select provider...</option>
+                    <option value="infobip">Infobip</option>
+                    <option value="acs">Azure Communication Services</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone_number">Phone Number:</label>
+                <input type="tel" id="phone_number" name="phone_number" placeholder="+1234567890" required>
+                <small style="color: #666;">Must be in E.164 format (+1234567890)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="business_name">Business Name (optional):</label>
+                <input type="text" id="business_name" name="business_name" placeholder="My Wedding Business">
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn">Add Channel</button>
+                <button type="button" onclick="closeModal('addChannelModal')" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Mapping Modal -->
+<div id="addMappingModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('addMappingModal')">&times;</span>
+        <h2>Assign Agent to Channel</h2>
+        <form method="post" action="/config/mappings/add">
+            <input type="hidden" id="mapping_channel_id" name="channel_id">
+            
+            <div class="form-group">
+                <label for="mapping_agent_id">Select Agent:</label>
+                <select id="mapping_agent_id" name="agent_id" required>
+                    <option value="">Select an agent...</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="mapping_is_primary" name="is_primary" value="true">
+                    Set as primary agent for this channel
+                </label>
+                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                    Primary agents are preferred when multiple agents are assigned to a channel
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn">Add Mapping</button>
+                <button type="button" onclick="closeModal('addMappingModal')" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load agents for mapping modal
+async function loadAgents() {
+    try {
+        const response = await fetch('/config/api/agents');
+        const data = await response.json();
+        
+        const select = document.getElementById('mapping_agent_id');
+        select.innerHTML = '<option value="">Select an agent...</option>';
+        
+        data.agents.forEach(agent => {
+            const option = document.createElement('option');
+            option.value = agent.agent_id;
+            option.textContent = `${agent.agent_name} (${agent.agent_id})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load agents:', error);
+    }
+}
+
+function openAddMappingModal(channelId) {
+    document.getElementById('mapping_channel_id').value = channelId;
+    loadAgents();
+    openModal('addMappingModal');
+}
+
+async function removeMapping(mappingId) {
+    if (!confirm('Are you sure you want to remove this agent mapping?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/config/mappings/${mappingId}/delete`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to remove mapping');
+        }
+    } catch (error) {
+        alert('Error removing mapping: ' + error.message);
+    }
+}
+
+// Validate phone number format
+document.getElementById('phone_number').addEventListener('input', function(e) {
+    const value = e.target.value;
+    if (value && !value.startsWith('+')) {
+        e.target.setCustomValidity('Phone number must be in E.164 format (start with +)');
+    } else {
+        e.target.setCustomValidity('');
+    }
+});
+
+// Auto-generate channel ID based on name and type
+document.getElementById('channel_name').addEventListener('input', updateChannelId);
+document.getElementById('channel_type').addEventListener('change', updateChannelId);
+
+function updateChannelId() {
+    const name = document.getElementById('channel_name').value;
+    const type = document.getElementById('channel_type').value;
+    
+    if (name && type) {
+        const id = name.toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, '-')
+            + '-' + type + '-001';
+        
+        document.getElementById('channel_id').value = id;
+    }
+}
+</script>
+{% endblock %}

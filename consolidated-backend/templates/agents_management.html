@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Agents Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>AI Agents Management</h2>
+        <button onclick="openModal('addAgentModal')" class="btn">Add New Agent</button>
+    </div>
+    <div class="card-content">
+        {% if agents %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Foundry Endpoint</th>
+                        <th>Channels</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for agent in agents %}
+                    <tr>
+                        <td><code>{{ agent.agent_id }}</code></td>
+                        <td><strong>{{ agent.agent_name }}</strong></td>
+                        <td>{{ agent.description or 'No description' }}</td>
+                        <td>
+                            <span title="{{ agent.foundry_endpoint }}">
+                                {{ agent.foundry_endpoint[:30] }}{% if agent.foundry_endpoint|length > 30 %}...{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">{{ agent.channel_count }} channels</span>
+                            {% if agent.channels %}
+                                <div style="font-size: 0.8rem; margin-top: 0.25rem;">
+                                    {% for channel in agent.channels[:3] %}
+                                        <span class="badge badge-{% if channel.channel_type == 'whatsapp' %}success{% else %}info{% endif %}">
+                                            {{ channel.phone_number }}
+                                        </span>
+                                    {% endfor %}
+                                    {% if agent.channels|length > 3 %}
+                                        <span class="badge badge-secondary">+{{ agent.channels|length - 3 }} more</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>{{ agent.created_at[:10] if agent.created_at else 'N/A' }}</td>
+                        <td>
+                            <button onclick="editAgent('{{ agent.agent_id }}')" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">Edit</button>
+                            <form method="post" action="/config/agents/{{ agent.agent_id }}/delete" style="display: inline;" onsubmit="return confirmDelete('Are you sure you want to delete agent {{ agent.agent_name }}? This will remove all associated channel mappings.')">
+                                <button type="submit" class="btn btn-danger" style="font-size: 0.8rem; padding: 0.25rem 0.5rem;">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                <strong>No agents configured yet.</strong><br>
+                Add your first AI agent to get started with multi-agent WhatsApp Business integration.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Agent Modal -->
+<div id="addAgentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('addAgentModal')">&times;</span>
+        <h2>Add New AI Agent</h2>
+        <form method="post" action="/config/agents/add">
+            <div class="form-group">
+                <label for="agent_id">Agent ID:</label>
+                <input type="text" id="agent_id" name="agent_id" placeholder="asst_khFWOGAwaF7BJ73ecupCfXze" required>
+                <small style="color: #666;">Must start with 'asst_' (from Azure AI Foundry)</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="agent_name">Agent Name:</label>
+                <input type="text" id="agent_name" name="agent_name" placeholder="Wedding Planner Assistant" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="foundry_endpoint">Azure AI Foundry Endpoint:</label>
+                <input type="url" id="foundry_endpoint" name="foundry_endpoint" placeholder="https://your-foundry-endpoint.cognitiveservices.azure.com/" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description (optional):</label>
+                <textarea id="description" name="description" rows="3" placeholder="Describe what this agent does..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn">Add Agent</button>
+                <button type="button" onclick="closeModal('addAgentModal')" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Agent Modal -->
+<div id="editAgentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('editAgentModal')">&times;</span>
+        <h2>Edit Agent</h2>
+        <form id="editAgentForm">
+            <input type="hidden" id="edit_agent_id" name="agent_id">
+            
+            <div class="form-group">
+                <label for="edit_agent_name">Agent Name:</label>
+                <input type="text" id="edit_agent_name" name="agent_name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_foundry_endpoint">Azure AI Foundry Endpoint:</label>
+                <input type="url" id="edit_foundry_endpoint" name="foundry_endpoint" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_description">Description:</label>
+                <textarea id="edit_description" name="description" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn">Update Agent</button>
+                <button type="button" onclick="closeModal('editAgentModal')" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const agents = {{ agents | tojson }};
+
+function editAgent(agentId) {
+    const agent = agents.find(a => a.agent_id === agentId);
+    if (!agent) return;
+    
+    document.getElementById('edit_agent_id').value = agent.agent_id;
+    document.getElementById('edit_agent_name').value = agent.agent_name;
+    document.getElementById('edit_foundry_endpoint').value = agent.foundry_endpoint;
+    document.getElementById('edit_description').value = agent.description || '';
+    
+    openModal('editAgentModal');
+}
+
+document.getElementById('editAgentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const agentId = formData.get('agent_id');
+    
+    const updates = {
+        agent_name: formData.get('agent_name'),
+        foundry_endpoint: formData.get('foundry_endpoint'),
+        description: formData.get('description')
+    };
+    
+    try {
+        const response = await fetch(`/config/api/agents/${agentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        if (response.ok) {
+            closeModal('editAgentModal');
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert('Failed to update agent: ' + error.detail);
+        }
+    } catch (error) {
+        alert('Error updating agent: ' + error.message);
+    }
+});
+
+// Validate agent ID format
+document.getElementById('agent_id').addEventListener('input', function(e) {
+    const value = e.target.value;
+    if (value && !value.startsWith('asst_')) {
+        e.target.setCustomValidity('Agent ID must start with "asst_"');
+    } else {
+        e.target.setCustomValidity('');
+    }
+});
+</script>
+{% endblock %}

@@ -25,6 +25,11 @@ param useFoundryAgent string = 'true'
 // WhatsApp ACS parameters - only need the channel registration ID
 param acsChannelRegistrationId string = '5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec'
 
+// Messaging Connect parameters for Infobip integration
+param messagingConnectEnabled bool = true
+param whatsappChannelId string = ''  // Infobip WhatsApp channel ID
+param smsChannelId string = ''       // Infobip SMS channel ID
+
 // Existing Event Grid topic name
 param existingEventGridTopicName string = 'dev-acs-topic-2wfnxagc7mn5g'
 
@@ -70,6 +75,9 @@ module acaConsolidated './aca-consolidated.bicep' = {
     agentId: agentId
     useFoundryAgent: useFoundryAgent
     acsChannelRegistrationId: acsChannelRegistrationId
+    messagingConnectEnabled: messagingConnectEnabled
+    whatsappChannelId: whatsappChannelId
+    smsChannelId: smsChannelId
     existingEventGridTopicName: existingEventGridTopicName
   }
 }

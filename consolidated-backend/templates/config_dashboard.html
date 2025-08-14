@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>{{ stats.total_agents }}</h3>
+        <p>Total AI Agents</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.total_channels }}</h3>
+        <p>Total Channels</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.whatsapp_channels }}</h3>
+        <p>WhatsApp Channels</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.sms_channels }}</h3>
+        <p>SMS Channels</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.active_channels }}</h3>
+        <p>Active Channels</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ stats.total_mappings }}</h3>
+        <p>Agent-Channel Mappings</p>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h2>Configuration Status</h2>
+            {% if validation.valid %}
+                <span class="badge badge-success">Valid</span>
+            {% else %}
+                <span class="badge badge-danger">Issues Found</span>
+            {% endif %}
+        </div>
+        <div class="card-content">
+            {% if validation.valid %}
+                <div class="alert alert-success">
+                    ✅ All configurations are valid and ready to use.
+                </div>
+            {% else %}
+                <div class="alert alert-danger">
+                    <strong>Configuration Issues:</strong>
+                    <ul style="margin-top: 0.5rem;">
+                        {% for issue in validation.issues %}
+                            <li>{{ issue }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            
+            {% if validation.warnings %}
+                <div class="alert alert-warning">
+                    <strong>Warnings:</strong>
+                    <ul style="margin-top: 0.5rem;">
+                        {% for warning in validation.warnings %}
+                            <li>{{ warning }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h2>Quick Actions</h2>
+        </div>
+        <div class="card-content">
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <a href="/config/agents" class="btn">Manage AI Agents</a>
+                <a href="/config/channels" class="btn">Manage Channels</a>
+                <button onclick="openModal('testModal')" class="btn btn-secondary">Test Configuration</button>
+                <a href="/config/api/validation" class="btn btn-secondary" target="_blank">View API Validation</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Recent Agents</h2>
+        <a href="/config/agents" class="btn">View All</a>
+    </div>
+    <div class="card-content">
+        {% if agents %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Agent ID</th>
+                        <th>Name</th>
+                        <th>Foundry Endpoint</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for agent in agents[:5] %}
+                    <tr>
+                        <td><code>{{ agent.agent_id }}</code></td>
+                        <td>{{ agent.agent_name }}</td>
+                        <td>{{ agent.foundry_endpoint[:30] }}{% if agent.foundry_endpoint|length > 30 %}...{% endif %}</td>
+                        <td>{{ agent.created_at[:10] if agent.created_at else 'N/A' }}</td>
+                        <td><span class="badge badge-success">Active</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                No agents configured yet. <a href="/config/agents">Add your first agent</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Recent Channels</h2>
+        <a href="/config/channels" class="btn">View All</a>
+    </div>
+    <div class="card-content">
+        {% if channels %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Channel ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Phone Number</th>
+                        <th>Provider</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for channel in channels[:5] %}
+                    <tr>
+                        <td><code>{{ channel.channel_id }}</code></td>
+                        <td>{{ channel.channel_name }}</td>
+                        <td>
+                            {% if channel.channel_type == 'whatsapp' %}
+                                <span class="badge badge-success">WhatsApp</span>
+                            {% else %}
+                                <span class="badge badge-info">SMS</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ channel.phone_number }}</td>
+                        <td>{{ channel.provider|title }}</td>
+                        <td>
+                            {% if channel.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-warning">Inactive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-warning">
+                No channels configured yet. <a href="/config/channels">Add your first channel</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Test Configuration Modal -->
+<div id="testModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('testModal')">&times;</span>
+        <h2>Test Configuration</h2>
+        <form id="testForm">
+            <div class="form-group">
+                <label for="testPhone">Phone Number (E.164 format):</label>
+                <input type="tel" id="testPhone" name="phone_number" placeholder="+1234567890" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn">Test Agent Lookup</button>
+            </div>
+        </form>
+        <div id="testResult" style="margin-top: 1rem;"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('testForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const phoneNumber = document.getElementById('testPhone').value;
+    const resultDiv = document.getElementById('testResult');
+    
+    try {
+        resultDiv.innerHTML = '<p>Testing...</p>';
+        
+        const response = await fetch(`/config/api/phone/${encodeURIComponent(phoneNumber)}/agent`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>✅ Configuration Test Successful</strong><br>
+                    <strong>Phone:</strong> ${data.phone_number}<br>
+                    <strong>Agent:</strong> ${data.agent.agent_name} (${data.agent.agent_id})<br>
+                    <strong>Channel:</strong> ${data.channel.channel_name} (${data.channel.channel_type})<br>
+                    <strong>Provider:</strong> ${data.channel.provider}
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>❌ Test Failed:</strong> ${data.detail}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <strong>❌ Error:</strong> ${error.message}
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}
