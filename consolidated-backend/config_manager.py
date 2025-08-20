@@ -35,6 +35,11 @@ class AgentConfig(BaseModel):
             data['created_at'] = datetime.utcnow()
         data['updated_at'] = datetime.utcnow()
         super().__init__(**data)
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 class ChannelConfig(BaseModel):
     """Configuration for a messaging channel"""
@@ -66,6 +71,11 @@ class ChannelConfig(BaseModel):
             data['created_at'] = datetime.utcnow()
         data['updated_at'] = datetime.utcnow()
         super().__init__(**data)
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 class AgentChannelMapping(BaseModel):
     """Mapping between agents and channels"""
@@ -83,6 +93,11 @@ class AgentChannelMapping(BaseModel):
             data['created_at'] = datetime.utcnow()
         data['updated_at'] = datetime.utcnow()
         super().__init__(**data)
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 @dataclass
 class ConfigManagerStats:
@@ -189,6 +204,12 @@ class ConfigurationManager:
             agent_dict = agent_config.dict()
             agent_dict['id'] = agent_config.agent_id  # Cosmos DB requires 'id' field
             
+            # Convert datetime objects to ISO format strings for JSON serialization
+            if agent_dict.get('created_at') and isinstance(agent_dict['created_at'], datetime):
+                agent_dict['created_at'] = agent_dict['created_at'].isoformat()
+            if agent_dict.get('updated_at') and isinstance(agent_dict['updated_at'], datetime):
+                agent_dict['updated_at'] = agent_dict['updated_at'].isoformat()
+            
             self.agents_container.create_item(agent_dict)
             self._agents_cache[agent_config.agent_id] = agent_dict
             
@@ -272,6 +293,12 @@ class ConfigurationManager:
         try:
             channel_dict = channel_config.dict()
             channel_dict['id'] = channel_config.channel_id  # Cosmos DB requires 'id' field
+            
+            # Convert datetime objects to ISO format strings for JSON serialization
+            if channel_dict.get('created_at') and isinstance(channel_dict['created_at'], datetime):
+                channel_dict['created_at'] = channel_dict['created_at'].isoformat()
+            if channel_dict.get('updated_at') and isinstance(channel_dict['updated_at'], datetime):
+                channel_dict['updated_at'] = channel_dict['updated_at'].isoformat()
             
             self.channels_container.create_item(channel_dict)
             self._channels_cache[channel_config.channel_id] = channel_dict
@@ -372,6 +399,12 @@ class ConfigurationManager:
         try:
             mapping_dict = mapping.dict()
             mapping_dict['id'] = mapping.mapping_id  # Cosmos DB requires 'id' field
+            
+            # Convert datetime objects to ISO format strings for JSON serialization
+            if mapping_dict.get('created_at') and isinstance(mapping_dict['created_at'], datetime):
+                mapping_dict['created_at'] = mapping_dict['created_at'].isoformat()
+            if mapping_dict.get('updated_at') and isinstance(mapping_dict['updated_at'], datetime):
+                mapping_dict['updated_at'] = mapping_dict['updated_at'].isoformat()
             
             self.mappings_container.create_item(mapping_dict)
             self._mappings_cache[mapping.mapping_id] = mapping_dict

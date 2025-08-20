@@ -48,11 +48,19 @@ async def agents_page(request: Request):
         manager = get_config_manager()
         agents = manager.list_agents()
         
-        # Get channel counts for each agent
+        # Get channel counts for each agent (avoid circular references)
         for agent in agents:
             channels = manager.get_channels_for_agent(agent['agent_id'])
             agent['channel_count'] = len(channels)
-            agent['channels'] = channels
+            # Only include basic channel info to avoid circular references
+            agent['channels'] = [
+                {
+                    'channel_id': ch['channel_id'],
+                    'channel_name': ch['channel_name'],
+                    'channel_type': ch['channel_type'],
+                    'phone_number': ch['phone_number']
+                } for ch in channels
+            ]
         
         return templates.TemplateResponse("agents_management.html", {
             "request": request,
@@ -68,15 +76,20 @@ async def channels_page(request: Request, channel_type: Optional[str] = None):
         manager = get_config_manager()
         channels = manager.list_channels(channel_type=channel_type)
         
-        # Get agent assignments for each channel
+        # Get agent assignments for each channel (avoid circular references)
         for channel in channels:
             mappings = manager.get_mappings_by_channel(channel['channel_id'])
             channel['agent_mappings'] = []
             for mapping in mappings:
                 agent = manager.get_agent(mapping['agent_id'])
                 if agent:
+                    # Only include basic agent info to avoid circular references
                     channel['agent_mappings'].append({
-                        'agent': agent,
+                        'agent': {
+                            'agent_id': agent['agent_id'],
+                            'agent_name': agent['agent_name'],
+                            'foundry_endpoint': agent['foundry_endpoint']
+                        },
                         'is_primary': mapping.get('is_primary', False),
                         'mapping_id': mapping['mapping_id']
                     })
@@ -289,13 +302,27 @@ async def delete_mapping(mapping_id: str):
 # API endpoints for programmatic access
 @config_ui_router.get("/api/agents")
 async def api_list_agents():
-    """API: List all agents"""
+    """API: List all agents (clean, no circular references)"""
     try:
         manager = get_config_manager()
         agents = manager.list_agents()
-        return {"agents": agents}
+        
+        # Return clean agent data without circular references
+        clean_agents = []
+        for agent in agents:
+            clean_agent = {
+                'agent_id': agent['agent_id'],
+                'agent_name': agent['agent_name'],
+                'foundry_endpoint': agent['foundry_endpoint'],
+                'description': agent.get('description', ''),
+                'created_at': agent.get('created_at'),
+                'updated_at': agent.get('updated_at')
+            }
+            clean_agents.append(clean_agent)
+        
+        return {"agents": clean_agents}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to load agents: {str(e)}")
 
 @config_ui_router.get("/api/channels")
 async def api_list_channels(channel_type: Optional[str] = None):

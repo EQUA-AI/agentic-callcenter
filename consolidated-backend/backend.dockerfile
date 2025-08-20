@@ -15,9 +15,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy consolidated backend application code
 COPY consolidated-backend/app.py .
+COPY consolidated-backend/messaging_connect.py .
+COPY consolidated-backend/config_manager.py .
+COPY consolidated-backend/multi_agent_router.py .
 
 # Copy shared utilities and routers from parent directories
 COPY api/routers ./routers
+COPY consolidated-backend/routers/* ./routers/
+COPY consolidated-backend/templates ./templates
 COPY api/utils ./utils
 COPY api/conversation_store.py .
 COPY api/foundry_agent.py .

@@ -168,9 +168,13 @@ class MultiAgentRouter:
             Agent's response
         """
         try:
-            # For now, use the existing ask_foundry function
-            # TODO: Modify ask_foundry to accept agent_id and endpoint parameters
-            response = ask_foundry(message_content, conversation_id)
+            # Call the updated ask_foundry function with agent-specific parameters
+            response = ask_foundry(
+                user_text=message_content, 
+                conversation_id=conversation_id,
+                agent_id=agent_config['agent_id'],
+                foundry_endpoint=agent_config['foundry_endpoint']
+            )
             
             logger.info(f"Agent {agent_config['agent_name']} responded to conversation {conversation_id}")
             return response

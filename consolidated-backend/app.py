@@ -1,6 +1,6 @@
 """
 Consolidated Backend Service - API + Functions
-Multi-tenant architecture supporting multiple phone numbers and agents
+Dynamic multi-agent architecture supporting multiple phone numbers and agents from CosmosDB configuration
 """
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -16,50 +16,17 @@ import uvicorn
 from typing import Dict, Optional
 from dotenv import load_dotenv
 
+# Import multi-agent router for dynamic configuration
+from multi_agent_router import get_multi_agent_router
+
 # Load environment variables
 load_dotenv(override=True)
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("azure").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# Multi-tenant configuration
-class TenantConfig:
-    def __init__(self):
-        self.agents = {}
-        self.phone_numbers = {}
-        self.load_tenant_configs()
-    
-    def load_tenant_configs(self):
-        """Load tenant configurations from environment or database"""
-        # Example tenant configuration
-        self.agents = {
-            "wedding": {
-                "agent_id": os.getenv("AGENT_ID", "asst_khFWOGAwaF7BJ73ecupCfXze"),
-                "foundry_endpoint": os.getenv("AZURE_AI_FOUNDRY_ENDPOINT"),
-                "phone_numbers": ["+1234567890"]  # WhatsApp number
-            },
-            "telco": {
-                "agent_id": "asst_telco_agent_id",
-                "foundry_endpoint": os.getenv("AZURE_AI_FOUNDRY_ENDPOINT"),
-                "phone_numbers": ["+1234567891"]  # Different number
-            }
-        }
-        
-        # Reverse mapping for phone number to tenant lookup
-        for tenant_id, config in self.agents.items():
-            for phone in config["phone_numbers"]:
-                self.phone_numbers[phone] = tenant_id
-    
-    def get_tenant_by_phone(self, phone_number: str) -> Optional[str]:
-        """Get tenant ID by phone number"""
-        return self.phone_numbers.get(phone_number)
-    
-    def get_agent_config(self, tenant_id: str) -> Optional[Dict]:
-        """Get agent configuration for tenant"""
-        return self.agents.get(tenant_id)
-
-# Initialize tenant configuration
-tenant_config = TenantConfig()
+# Initialize multi-agent router
+multi_agent_router = get_multi_agent_router()
 
 # FastAPI application
 app = FastAPI(title="Consolidated Backend Service")
@@ -78,39 +45,11 @@ async def validation_exception_handler(request, exc):
 from routers.conversation import conversation_router
 from routers.integration import integration_router
 from routers.config_ui import config_ui_router
-from multi_agent_router import get_multi_agent_router
 
+# Include routers
 app.include_router(conversation_router)
-app.include_router(integration_router)
-app.include_router(config_ui_router, prefix="/config")
-
-# Initialize multi-agent router
-multi_agent_router = get_multi_agent_router()
-
-# Initialize multi-agent router
-# multi_agent_router = get_multi_agent_router()
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    messaging_status = messaging_connect_service.get_status() if messaging_connect_service else {"enabled": False}
-    routing_stats = multi_agent_router.get_routing_stats()
-    
-    return {
-        "status": "healthy",
-        "messaging_connect": messaging_status,
-        "multi_agent_routing": routing_stats,
-        "acs_endpoint": acs_endpoint,
-        "service": "consolidated-backend",
-        "endpoints": {
-            "config_dashboard": "/config/",
-            "messaging_connect_sms": "/messaging-connect/test-sms",
-            "messaging_connect_whatsapp": "/messaging-connect/test-whatsapp",
-            "messaging_connect_status": "/messaging-connect/status",
-            "multi_agent_route": "/route/message",
-            "routing_stats": "/route/stats"
-        }
-    }
+app.include_router(integration_router) 
+app.include_router(config_ui_router)
 
 @app.post("/route/message")
 async def route_message(request: Request):
@@ -352,7 +291,7 @@ whisper_client = AzureOpenAI(
     connection="ServiceBusConnection"
 )
 async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
-    """Process messages from Service Bus - Multi-tenant aware with full WhatsApp support"""
+    """Process messages from Service Bus - Dynamic multi-agent routing with full WhatsApp support"""
     try:
         sb_message_payload = json.loads(sbmessage.get_body().decode('utf-8'))
         logger.info(f'Processing a message: {sb_message_payload}')
@@ -365,6 +304,7 @@ async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
         channel_type = data['channelType']  # should be "whatsapp"
         content = data['content'] if 'content' in data else None
         from_number = data['from']
+        to_number = data.get('to', '')
         media = data['media'] if 'media' in data else None
         
         # Handle media (audio/image processing like original)
@@ -392,48 +332,76 @@ async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
             logger.info(f"No text content to process, skipping message from {from_number}")
             return
         
-        # Determine which tenant this message belongs to (for multi-tenant support)
-        tenant_id = tenant_config.get_tenant_by_phone(data.get('to', ''))
-        if not tenant_id:
-            logger.warning(f"No tenant found for phone number: {data.get('to', '')}")
-            tenant_id = "default"  # fallback to default tenant
+        # Use the multi-agent router to process the message dynamically
+        logger.info(f"Routing message from {from_number} to {to_number} using dynamic configuration")
         
-        agent_config = tenant_config.get_agent_config(tenant_id)
-        if not agent_config:
-            logger.error(f"No agent config found for tenant: {tenant_id}")
+        # Create conversation ID based on channel and customer phone
+        conversation_id = f"{channel_type}_{from_number.replace('+', '')}"
+        
+        # Process message through multi-agent router
+        result = await multi_agent_router.process_message(
+            from_phone=from_number,
+            to_phone=to_number,
+            message_content=content,
+            conversation_id=conversation_id
+        )
+        
+        if not result['success']:
+            logger.error(f"Failed to process message: {result.get('error', 'Unknown error')}")
             return
         
-        logger.info(f"Routing message to tenant: {tenant_id}, agent: {agent_config['agent_id']}")
+        routing_info = result['routing_info']
+        agent_response = result['response']
         
-        # Process message with tenant-specific agent (call internal API)
-        conversation_id = from_number  # Use phone number as conversation ID
-        new_messages = await ask_tenant_agent_internal(content, conversation_id, agent_config)
+        logger.info(f"Agent {routing_info['agent_name']} responded for channel {routing_info['channel_name']}")
         
-        logger.info(f"New messages: {new_messages}")
-        
-        # Send responses to the user (keep existing WhatsApp functionality)
-        for message in new_messages:
-            if ('name' in message and message['name'] == "Customer") or message['role'] == "user":
-                continue
-                
-            logger.info(f"Sending response: {message}")
-            text_options = TextNotificationContent(
-                channel_registration_id=acs_channelRegistrationId,
-                to=[from_number],
-                content=message['content'],
-            )
-            
-            # calling send() with whatsapp message details
-            message_responses = messaging_client.send(text_options)
-            message_send_result = message_responses.receipts[0]
-            
-            if (message_send_result is not None):
-                logger.info(f"WhatsApp Text Message with message id {message_send_result.message_id} was successfully sent to {message_send_result.to}.")
-            else:
-                logger.error(f"Message failed to send: {message_send_result}")
+        # Send response back to the user using the appropriate channel
+        await send_response_to_channel(
+            response_text=agent_response,
+            from_number=from_number,
+            channel_info=routing_info
+        )
         
     except Exception as e:
         logger.error(f"Error processing WhatsApp message: {str(e)}")
+
+async def send_response_to_channel(response_text: str, from_number: str, channel_info: Dict):
+    """Send response back to the user through the appropriate channel"""
+    try:
+        channel_type = channel_info['channel_type']
+        channel_id = channel_info['channel_id']
+        
+        if channel_type == 'whatsapp':
+            # Send WhatsApp message
+            text_options = TextNotificationContent(
+                channel_registration_id=channel_id,
+                to=[from_number],
+                content=response_text,
+            )
+            
+            message_responses = messaging_client.send(text_options)
+            message_send_result = message_responses.receipts[0]
+            
+            if message_send_result is not None:
+                logger.info(f"WhatsApp message sent successfully to {from_number} via channel {channel_info['channel_name']}")
+            else:
+                logger.error(f"Failed to send WhatsApp message to {from_number}")
+                
+        elif channel_type == 'sms':
+            # Send SMS message using messaging connect
+            try:
+                result = await messaging_connect_service.send_sms(from_number, response_text, channel_id)
+                if result['success']:
+                    logger.info(f"SMS sent successfully to {from_number} via channel {channel_info['channel_name']}")
+                else:
+                    logger.error(f"Failed to send SMS to {from_number}: {result.get('error', 'Unknown error')}")
+            except Exception as sms_error:
+                logger.error(f"SMS send error: {sms_error}")
+        else:
+            logger.warning(f"Unsupported channel type: {channel_type}")
+            
+    except Exception as e:
+        logger.error(f"Error sending response to {from_number}: {e}")
 
 async def process_tenant_message(message_data: Dict, tenant_id: str, agent_config: Dict):
     """Process message for specific tenant"""
@@ -487,37 +455,50 @@ async def ask_tenant_agent(input_message: str, conversation_id: str, agent_confi
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "service": "consolidated-backend",
-        "tenants": list(tenant_config.agents.keys())
-    }
-
-# Tenant management endpoints
-@app.get("/tenants")
-async def list_tenants():
-    """List all configured tenants"""
-    return {
-        "tenants": [
-            {
-                "id": tenant_id,
-                "phone_numbers": config["phone_numbers"],
-                "agent_id": config["agent_id"]
+    """Health check endpoint with multi-agent routing status"""
+    try:
+        # Get routing statistics
+        routing_stats = multi_agent_router.get_routing_stats()
+        
+        # Get messaging connect status if available
+        messaging_status = {"enabled": True}
+        try:
+            if 'messaging_connect_service' in globals():
+                messaging_status = messaging_connect_service.get_status()
+            else:
+                messaging_status = {
+                    "enabled": bool(os.getenv("MESSAGING_CONNECT_ENABLED", "").lower() == "true"),
+                    "sms_configured": bool(os.getenv("SMS_CHANNEL_ID")),
+                    "whatsapp_configured": bool(os.getenv("WHATSAPP_CHANNEL_ID")),
+                    "sms_channel_id": os.getenv("SMS_CHANNEL_ID", ""),
+                    "whatsapp_channel_id": os.getenv("WHATSAPP_CHANNEL_ID", "")
+                }
+        except Exception as e:
+            logger.warning(f"Could not get messaging status: {e}")
+            messaging_status = {"enabled": False, "error": str(e)}
+        
+        return {
+            "status": "healthy",
+            "messaging_connect": messaging_status,
+            "multi_agent_routing": routing_stats,
+            "acs_endpoint": os.getenv("ACS_ENDPOINT", ""),
+            "service": "consolidated-backend",
+            "endpoints": {
+                "config_dashboard": "/config/",
+                "messaging_connect_sms": "/messaging-connect/test-sms",
+                "messaging_connect_whatsapp": "/messaging-connect/test-whatsapp",
+                "messaging_connect_status": "/messaging-connect/status",
+                "multi_agent_route": "/route/message",
+                "routing_stats": "/route/stats"
             }
-            for tenant_id, config in tenant_config.agents.items()
-        ]
-    }
-
-@app.post("/tenants/{tenant_id}/phone-numbers")
-async def add_phone_number(tenant_id: str, phone_number: str):
-    """Add phone number to tenant"""
-    if tenant_id not in tenant_config.agents:
-        return JSONResponse(status_code=404, content={"error": "Tenant not found"})
-    
-    tenant_config.agents[tenant_id]["phone_numbers"].append(phone_number)
-    tenant_config.phone_numbers[phone_number] = tenant_id
-    
-    return {"message": f"Phone number {phone_number} added to tenant {tenant_id}"}
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(status_code=500, content={
+            "status": "unhealthy", 
+            "error": str(e),
+            "service": "consolidated-backend"
+        })
 
 if __name__ == "__main__":
     import uvicorn
