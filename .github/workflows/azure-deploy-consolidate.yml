@@ -84,9 +84,15 @@ jobs:
           UAMI_CLIENT_ID=$(az identity show --name devuami2wfnxagc7mn5g --resource-group $RG_NAME --query "clientId" --output tsv)
           echo "UAMI_CLIENT_ID=$UAMI_CLIENT_ID" >> $GITHUB_ENV
           
-          # Get Cognitive Services key
-          SPEECH_KEY=$(az cognitiveservices account keys list --name dev-cogsvc-2wfnxagc7mn5g --resource-group $RG_NAME --query "key1" --output tsv)
-          echo "SPEECH_KEY=$SPEECH_KEY" >> $GITHUB_ENV
+          # Get Cognitive Services key (optional - skip if resource doesn't exist)
+          SPEECH_KEY=$(az cognitiveservices account keys list --name dev-cogsvc-2wfnxagc7mn5g --resource-group $RG_NAME --query "key1" --output tsv 2>/dev/null || echo "")
+          if [ -n "$SPEECH_KEY" ]; then
+            echo "SPEECH_KEY=$SPEECH_KEY" >> $GITHUB_ENV
+            echo "✅ Cognitive Services found and configured"
+          else
+            echo "⚠️  Cognitive Services not found - speech features will be disabled"
+            echo "SPEECH_KEY=" >> $GITHUB_ENV
+          fi
           
           # Setup multi-agent Cosmos DB containers
           echo "Setting up multi-agent Cosmos DB containers..."
@@ -160,6 +166,9 @@ jobs:
       - name: Provision Infrastructure and Deploy Consolidated Application with Multi-Agent Support
         run: |
           # Deploy consolidated containers to the existing environment with multi-agent configuration
+          # Use empty string for speechServiceKey if not available
+          SPEECH_PARAM="${SPEECH_KEY:-}"
+          
           az deployment sub create \
             --location ${{ secrets.AZURE_LOCATION }} \
             --template-file infra/main-consolidated.bicep \
@@ -169,7 +178,7 @@ jobs:
             --parameters resourceGroupName=rg-${{ secrets.AZURE_ENV_NAME }} \
             --parameters applicationInsightsConnectionString="$APPINSIGHTS_CONNECTION_STRING" \
             --parameters userAssignedIdentityClientId="$UAMI_CLIENT_ID" \
-            --parameters speechServiceKey="$SPEECH_KEY" \
+            --parameters speechServiceKey="$SPEECH_PARAM" \
             --parameters backendContainerImage="$BACKEND_IMAGE" \
             --parameters frontendContainerImage="$FRONTEND_IMAGE" \
             --parameters cosmosDbDatabaseName="telco-callcenter-agents" \
