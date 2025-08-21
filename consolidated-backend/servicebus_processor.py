@@ -84,8 +84,15 @@ class ServiceBusBackgroundProcessor:
     async def _handle_message(self, message: ServiceBusMessage):
         """Handle individual Service Bus message"""
         try:
-            # Parse message body
-            message_body = message.body.decode('utf-8')
+            # Parse message body - handle both bytes and generator
+            if hasattr(message.body, 'decode'):
+                # Direct bytes object
+                message_body = message.body.decode('utf-8')
+            else:
+                # Generator object - convert to bytes first
+                body_data = b"".join(message.body)
+                message_body = body_data.decode('utf-8')
+            
             sb_message_payload = json.loads(message_body)
             
             logger.info(f'📨 Processing Service Bus message: {sb_message_payload.get("eventType", "unknown")}')
