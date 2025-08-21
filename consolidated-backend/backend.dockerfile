@@ -18,6 +18,8 @@ COPY consolidated-backend/app.py .
 COPY consolidated-backend/messaging_connect.py .
 COPY consolidated-backend/config_manager.py .
 COPY consolidated-backend/multi_agent_router.py .
+COPY consolidated-backend/servicebus_processor.py .
+COPY consolidated-backend/start_services.py .
 
 # Copy shared utilities and routers from parent directories
 COPY api/routers ./routers
