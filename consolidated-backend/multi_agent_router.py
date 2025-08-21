@@ -62,7 +62,7 @@ class MultiAgentRouter:
         
         Args:
             from_phone: Sender's phone number
-            to_phone: Recipient's phone number (your business number)
+            to_phone: Recipient's phone number (your business number) or channel ID
             message_content: Optional message content for routing logic
             
         Returns:
@@ -70,15 +70,32 @@ class MultiAgentRouter:
         """
         self._refresh_routing_cache()
         
-        # Normalize phone numbers to E.164 format
-        if not to_phone.startswith('+'):
-            to_phone = '+' + to_phone
+        # First try to find by channel ID (for Azure Communication Services)
+        route = None
         
-        # Find the route based on the business phone number (to_phone)
-        route = self._routing_cache.get(to_phone)
+        # Check if to_phone is a channel ID (UUID format)
+        if len(to_phone) == 36 and '-' in to_phone:
+            # Look up by channel ID
+            channels = self.config_manager.list_channels(is_active=True)
+            for channel in channels:
+                if channel.get('channel_id') == to_phone:
+                    agent = self.config_manager.get_agent_for_phone(channel.get('phone_number'))
+                    if agent:
+                        route = {
+                            'agent': agent,
+                            'channel': channel
+                        }
+                    break
+        else:
+            # Normalize phone numbers to E.164 format
+            if not to_phone.startswith('+'):
+                to_phone = '+' + to_phone
+            
+            # Find the route based on the business phone number (to_phone)
+            route = self._routing_cache.get(to_phone)
         
         if not route:
-            logger.warning(f"No agent configuration found for business number: {to_phone}")
+            logger.warning(f"No agent configuration found for business number {to_phone}")
             return None
         
         agent_config = route['agent']
