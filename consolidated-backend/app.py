@@ -16,8 +16,26 @@ import uvicorn
 from typing import Dict, Optional
 from dotenv import load_dotenv
 
+# Azure Communication Services imports
+from azure.communication.messages import NotificationMessagesClient
+from azure.communication.messages.models import TextNotificationContent
+from azure.identity import DefaultAzureCredential
+from openai import AzureOpenAI
+from azure.identity import get_bearer_token_provider
+
 # Import multi-agent router for dynamic configuration
 from multi_agent_router import get_multi_agent_router
+
+# Import Service Bus background processor
+from servicebus_processor import ServiceBusBackgroundProcessor
+
+# Import routers and services
+from routers.conversation import conversation_router
+from routers.integration import integration_router
+from routers.config_ui import config_ui_router
+
+# Messaging Connect service
+from messaging_connect import get_messaging_connect_service
 
 # Load environment variables
 load_dotenv(override=True)
@@ -40,11 +58,6 @@ async def validation_exception_handler(request, exc):
         status_code=422,
         content={"detail": exc.errors()},
     )
-
-# Import routers and services
-from routers.conversation import conversation_router
-from routers.integration import integration_router
-from routers.config_ui import config_ui_router
 
 # Include routers
 app.include_router(conversation_router)
@@ -248,14 +261,7 @@ async def test_messaging(request: Request):
         logger.error(f"Test messaging failed: {e}")
         return {"error": str(e), "success": False}
 
-# Azure Functions integration
-function_app = func.FunctionApp()
-
 # Azure Communication Services client (multi-tenant)
-from azure.communication.messages import NotificationMessagesClient
-from azure.communication.messages.models import TextNotificationContent
-from azure.identity import DefaultAzureCredential
-
 acs_endpoint = os.getenv("ACS_ENDPOINT")
 acs_channelRegistrationId = os.getenv("ACS_CHANNEL_REGISTRATION_ID")
 messaging_client = NotificationMessagesClient(
@@ -264,15 +270,11 @@ messaging_client = NotificationMessagesClient(
 )
 
 # Messaging Connect using REST API (separate from existing WhatsApp)
-from messaging_connect import get_messaging_connect_service
 messaging_connect_service = get_messaging_connect_service()
 messaging_connect_enabled = messaging_connect_service.is_enabled()
 logger.info(f"Messaging Connect enabled: {messaging_connect_enabled}")
 
 # Whisper client for transcription
-from openai import AzureOpenAI
-from azure.identity import get_bearer_token_provider
-
 api_key = os.getenv("AZURE_OPENAI_WHISPER_API_KEY")
 token_provider = get_bearer_token_provider(
     DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
@@ -285,85 +287,28 @@ whisper_client = AzureOpenAI(
     azure_ad_token_provider=token_provider
 )
 
-@function_app.service_bus_queue_trigger(
-    arg_name="sbmessage", 
-    queue_name="messages",
-    connection="ServiceBusConnection"
+# Initialize Service Bus background processor
+servicebus_processor = ServiceBusBackgroundProcessor(
+    multi_agent_router=multi_agent_router,
+    messaging_client=messaging_client, 
+    whisper_client=whisper_client,
+    messaging_connect_service=messaging_connect_service
 )
-async def process_whatsapp_message(sbmessage: func.ServiceBusMessage):
-    """Process messages from Service Bus - Dynamic multi-agent routing with full WhatsApp support"""
-    try:
-        sb_message_payload = json.loads(sbmessage.get_body().decode('utf-8'))
-        logger.info(f'Processing a message: {sb_message_payload}')
-        
-        if sb_message_payload['eventType'] != "Microsoft.Communication.AdvancedMessageReceived":
-            logger.info(f"Message is not of type 'Microsoft.Communication.AdvancedMessageReceived': {sb_message_payload['eventType']}")
-            return
-        
-        data = sb_message_payload['data']
-        channel_type = data['channelType']  # should be "whatsapp"
-        content = data['content'] if 'content' in data else None
-        from_number = data['from']
-        to_number = data.get('to', '')
-        media = data['media'] if 'media' in data else None
-        
-        # Handle media (audio/image processing like original)
-        if media is not None:
-            media_blob = messaging_client.download_media(media['id'])
-            
-            if "audio" in media['mimeType']:
-                # Convert media_blob to bytes for whisper transcription
-                binary_data = b"".join(media_blob)
-                
-                transcription = whisper_client.audio.transcriptions.create(
-                    model="whisper",
-                    file=binary_data
-                )
-                content = transcription.text
-                
-            elif "image" in media['mimeType']:
-                # Convert media_blob to bytes
-                binary_data = b"".join(media_blob)
-                caption = media['caption'] if 'caption' in media else None
-                # TODO: Handle image processing as in original
-        
-        # Skip processing if there's no text content
-        if not content or content.strip() == "":
-            logger.info(f"No text content to process, skipping message from {from_number}")
-            return
-        
-        # Use the multi-agent router to process the message dynamically
-        logger.info(f"Routing message from {from_number} to {to_number} using dynamic configuration")
-        
-        # Create conversation ID based on channel and customer phone
-        conversation_id = f"{channel_type}_{from_number.replace('+', '')}"
-        
-        # Process message through multi-agent router
-        result = await multi_agent_router.process_message(
-            from_phone=from_number,
-            to_phone=to_number,
-            message_content=content,
-            conversation_id=conversation_id
-        )
-        
-        if not result['success']:
-            logger.error(f"Failed to process message: {result.get('error', 'Unknown error')}")
-            return
-        
-        routing_info = result['routing_info']
-        agent_response = result['response']
-        
-        logger.info(f"Agent {routing_info['agent_name']} responded for channel {routing_info['channel_name']}")
-        
-        # Send response back to the user using the appropriate channel
-        await send_response_to_channel(
-            response_text=agent_response,
-            from_number=from_number,
-            channel_info=routing_info
-        )
-        
-    except Exception as e:
-        logger.error(f"Error processing WhatsApp message: {str(e)}")
+
+# FastAPI lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    """Start background services"""
+    logger.info("🚀 Starting consolidated backend services...")
+    await servicebus_processor.start()
+    logger.info("✅ All services started successfully!")
+
+@app.on_event("shutdown") 
+async def shutdown_event():
+    """Stop background services"""
+    logger.info("🛑 Shutting down consolidated backend services...")
+    await servicebus_processor.stop()
+    logger.info("✅ All services stopped successfully!")
 
 async def send_response_to_channel(response_text: str, from_number: str, channel_info: Dict):
     """Send response back to the user through the appropriate channel"""
