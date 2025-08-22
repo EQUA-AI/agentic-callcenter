@@ -7,6 +7,8 @@ from typing import Dict, Optional, Any
 from datetime import datetime
 
 from config_manager import get_config_manager
+from multi_container_conversation_store import MultiContainerConversationStore
+
 # Note: We'll need to import the foundry agent function from the API module
 import sys
 import os
@@ -29,6 +31,7 @@ class MultiAgentRouter:
     
     def __init__(self):
         self.config_manager = get_config_manager()
+        self.conversation_store = MultiContainerConversationStore()
         self._routing_cache = {}
         self._cache_timestamp = None
         self._cache_ttl = 300  # 5 minutes
@@ -147,12 +150,52 @@ class MultiAgentRouter:
             if not conversation_id:
                 conversation_id = f"{routing_info['channel_id']}_{from_phone.replace('+', '')}_{int(datetime.utcnow().timestamp())}"
             
+            # Get existing conversation from phone-specific container
+            existing_conversation = self.conversation_store.get_conversation(
+                phone_number=to_phone,
+                conversation_id=conversation_id
+            )
+            
             # Process message through the agent
-            # Note: We'll need to modify ask_foundry to accept agent_id and foundry_endpoint
             agent_response = await self._call_foundry_agent(
                 message_content=message_content,
                 conversation_id=conversation_id,
-                agent_config=routing_info
+                agent_config=routing_info,
+                existing_conversation=existing_conversation
+            )
+            
+            # Save updated conversation to phone-specific container
+            conversation_data = {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": message_content,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "from_phone": from_phone
+                    },
+                    {
+                        "role": "assistant", 
+                        "content": agent_response,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "agent_id": routing_info['agent_id']
+                    }
+                ],
+                "variables": existing_conversation.get("variables", {}) if existing_conversation else {},
+                "routing_info": routing_info,
+                "created_at": existing_conversation.get("created_at") if existing_conversation else datetime.utcnow().isoformat()
+            }
+            
+            # Append to existing messages if conversation exists
+            if existing_conversation:
+                existing_messages = existing_conversation.get("messages", [])
+                conversation_data["messages"] = existing_messages + conversation_data["messages"]
+                conversation_data["variables"] = existing_conversation.get("variables", {})
+            
+            # Save to phone-specific container
+            self.conversation_store.save_conversation(
+                phone_number=to_phone,
+                conversation_id=conversation_id,
+                conversation=conversation_data
             )
             
             return {
@@ -160,7 +203,11 @@ class MultiAgentRouter:
                 'routing_info': routing_info,
                 'response': agent_response,
                 'conversation_id': conversation_id,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.utcnow().isoformat(),
+                'container_info': {
+                    'phone_number': to_phone,
+                    'container_name': self.conversation_store._get_container_name(to_phone)
+                }
             }
             
         except Exception as e:
@@ -172,7 +219,7 @@ class MultiAgentRouter:
                 'response': None
             }
     
-    async def _call_foundry_agent(self, message_content: str, conversation_id: str, agent_config: Dict) -> str:
+    async def _call_foundry_agent(self, message_content: str, conversation_id: str, agent_config: Dict, existing_conversation: Dict = None) -> str:
         """
         Call the appropriate Azure AI Foundry agent
         
@@ -180,6 +227,7 @@ class MultiAgentRouter:
             message_content: The user's message
             conversation_id: Conversation ID for context
             agent_config: Agent configuration from routing
+            existing_conversation: Previous conversation data for context
             
         Returns:
             Agent's response
@@ -190,7 +238,8 @@ class MultiAgentRouter:
                 user_text=message_content, 
                 conversation_id=conversation_id,
                 agent_id=agent_config['agent_id'],
-                foundry_endpoint=agent_config['foundry_endpoint']
+                foundry_endpoint=agent_config['foundry_endpoint'],
+                conversation_history=existing_conversation.get("messages", []) if existing_conversation else []
             )
             
             logger.info(f"Agent {agent_config['agent_name']} responded to conversation {conversation_id}")
