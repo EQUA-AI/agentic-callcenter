@@ -147,14 +147,30 @@ jobs:
           # Login to ACR
           az acr login --name $ACR_NAME
           
+          # Debug: List files in build context
+          echo "=== Build Context Debug ==="
+          echo "Current directory: $(pwd)"
+          echo "Consolidated-frontend contents:"
+          ls -la consolidated-frontend/
+          echo "Consolidated-backend contents:"
+          ls -la consolidated-backend/
+          
           # Build and push backend image (API + Functions) from root context
           echo "Building consolidated backend image..."
-          docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest .
+          if ! docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest .; then
+            echo "❌ Backend build failed"
+            exit 1
+          fi
+          echo "✅ Backend build successful"
           docker push $ACR_NAME.azurecr.io/consolidated-backend:latest
           
           # Build and push frontend image (Chainlit + Azure AI Foundry) from root context
           echo "Building consolidated frontend image (Chainlit)..."
-          docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest .
+          if ! docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest .; then
+            echo "❌ Frontend build failed"
+            exit 1
+          fi
+          echo "✅ Frontend build successful"
           docker push $ACR_NAME.azurecr.io/consolidated-frontend:latest
           
           # Set image names for Bicep deployment

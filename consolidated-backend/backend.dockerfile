@@ -23,7 +23,7 @@ COPY consolidated-backend/start_services.py .
 
 # Copy shared utilities and routers from parent directories
 COPY api/routers ./routers
-COPY consolidated-backend/routers/* ./routers/
+COPY consolidated-backend/routers/ ./routers/
 COPY consolidated-backend/templates ./templates
 COPY api/utils ./utils
 COPY api/conversation_store.py .

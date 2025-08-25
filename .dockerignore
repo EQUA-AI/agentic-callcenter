@@ -1,0 +1,50 @@
+# Root level .dockerignore - be specific about what to exclude
+# Don't exclude consolidated-frontend/ or consolidated-backend/ directories
+
+# Git files
+.git/
+.gitignore
+
+# Documentation
+*.md
+!consolidated-frontend/chainlit.md
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files (but allow .env.example)
+.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+test-scripts/
+*_test.py
+test_*.py
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Other directories that aren't needed for docker builds
+extra-docs/
+.github/
+tasks.py
+packages-microsoft-prod.deb
