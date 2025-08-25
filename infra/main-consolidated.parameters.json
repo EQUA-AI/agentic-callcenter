@@ -10,6 +10,27 @@
     },
     "resourceGroupName": {
       "value": "rg-${AZURE_ENV_NAME}"
+    },
+    "foundryEndpoint": {
+      "value": "https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni"
+    },
+    "agentId": {
+      "value": "asst_LgflhAlTTQMvnDLJp4wmOFQr"
+    },
+    "useFoundryAgent": {
+      "value": "true"
+    },
+    "acsChannelRegistrationId": {
+      "value": "5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec"
+    },
+    "multiAgentEnabled": {
+      "value": "true"
+    },
+    "enableConfigUI": {
+      "value": "true"
+    },
+    "cosmosDbDatabaseName": {
+      "value": "telco-callcenter-agents"
     }
   }
 }

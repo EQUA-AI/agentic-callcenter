@@ -71,9 +71,9 @@ jobs:
         shell: bash
 
       # Get existing resource information and setup multi-agent infrastructure
-      - name: Get existing resource information and setup multi-agent infrastructure
+      - name: Get existing resource information for environment variables
         run: |
-          # Get resource information from existing deployment
+          # Get resource information from existing deployment for environment variables
           RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
           
           # Get Application Insights connection string
@@ -94,125 +94,39 @@ jobs:
             echo "SPEECH_KEY=" >> $GITHUB_ENV
           fi
           
-          # Setup multi-agent Cosmos DB containers
-          echo "Setting up multi-agent Cosmos DB containers..."
-          COSMOS_ACCOUNT="devcosmos2wfnxagc7mn5g"
-          DATABASE_NAME="telco-callcenter-agents"
-          
-          # Create agents container if it doesn't exist
-          az cosmosdb sql container create \
-            --account-name $COSMOS_ACCOUNT \
-            --database-name $DATABASE_NAME \
-            --name agents \
-            --partition-key-path "/agent_id" \
-            --resource-group $RG_NAME \
-            --throughput 400 || echo "Agents container already exists"
-          
-          # Create channels container if it doesn't exist
-          az cosmosdb sql container create \
-            --account-name $COSMOS_ACCOUNT \
-            --database-name $DATABASE_NAME \
-            --name channels \
-            --partition-key-path "/channel_id" \
-            --resource-group $RG_NAME \
-            --throughput 400 || echo "Channels container already exists"
-          
-          # Create agent_channel_mappings container if it doesn't exist
-          az cosmosdb sql container create \
-            --account-name $COSMOS_ACCOUNT \
-            --database-name $DATABASE_NAME \
-            --name agent_channel_mappings \
-            --partition-key-path "/mapping_id" \
-            --resource-group $RG_NAME \
-            --throughput 400 || echo "Mappings container already exists"
-          
-          # Grant Cosmos DB Data Contributor role to managed identity for multi-agent containers
-          UAMI_PRINCIPAL_ID=$(az identity show --name devuami2wfnxagc7mn5g --resource-group $RG_NAME --query "principalId" --output tsv)
-          COSMOS_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RG_NAME/providers/Microsoft.DocumentDB/databaseAccounts/$COSMOS_ACCOUNT"
-          
-          az role assignment create \
-            --assignee $UAMI_PRINCIPAL_ID \
-            --role "00000000-0000-0000-0000-000000000002" \
-            --scope $COSMOS_SCOPE || echo "Role assignment already exists"
-          
-          echo "Multi-agent infrastructure setup completed successfully"
+          echo "Environment variables configured for azd deployment"
         shell: bash
 
-      # Build and push container images
-      - name: Build and push consolidated container images
+      # Deploy using azd - consolidated deployment with Bicep templates (like original azure-deploy.yml)
+      - name: Provision Infrastructure and Deploy Consolidated Application
         run: |
-          RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
-          ACR_NAME="devacr2wfnxagc7mn5g"
-          
-          # Login to ACR
-          az acr login --name $ACR_NAME
-          
-          # Debug: List files in build context
-          echo "=== Build Context Debug ==="
-          echo "Current directory: $(pwd)"
-          echo "Consolidated-frontend contents:"
-          ls -la consolidated-frontend/
-          echo "Consolidated-backend contents:"
-          ls -la consolidated-backend/
-          
-          # Build and push backend image (API + Functions) from root context
-          echo "Building consolidated backend image..."
-          if ! docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest .; then
-            echo "❌ Backend build failed"
-            exit 1
-          fi
-          echo "✅ Backend build successful"
-          docker push $ACR_NAME.azurecr.io/consolidated-backend:latest
-          
-          # Build and push frontend image (Chainlit + Azure AI Foundry) from root context
-          echo "Building consolidated frontend image (Chainlit)..."
-          if ! docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest .; then
-            echo "❌ Frontend build failed"
-            exit 1
-          fi
-          echo "✅ Frontend build successful"
-          docker push $ACR_NAME.azurecr.io/consolidated-frontend:latest
-          
-          # Set image names for Bicep deployment
-          echo "BACKEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-backend:latest" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=$ACR_NAME.azurecr.io/consolidated-frontend:latest" >> $GITHUB_ENV
-        shell: bash
-
-      # Deploy using direct Azure CLI - consolidated deployment to existing environment with multi-agent support
-      - name: Provision Infrastructure and Deploy Consolidated Application with Multi-Agent Support
-        run: |
-          # Deploy consolidated containers to the existing environment with multi-agent configuration
-          # Use empty string for speechServiceKey if not available
-          SPEECH_PARAM="${SPEECH_KEY:-}"
-          
-          az deployment sub create \
-            --location ${{ secrets.AZURE_LOCATION }} \
-            --template-file infra/main-consolidated.bicep \
-            --parameters infra/main-consolidated.parameters.json \
-            --parameters environmentName=${{ secrets.AZURE_ENV_NAME }} \
-            --parameters location=${{ secrets.AZURE_LOCATION }} \
-            --parameters resourceGroupName=rg-${{ secrets.AZURE_ENV_NAME }} \
-            --parameters applicationInsightsConnectionString="$APPINSIGHTS_CONNECTION_STRING" \
-            --parameters userAssignedIdentityClientId="$UAMI_CLIENT_ID" \
-            --parameters speechServiceKey="$SPEECH_PARAM" \
-            --parameters backendContainerImage="$BACKEND_IMAGE" \
-            --parameters frontendContainerImage="$FRONTEND_IMAGE" \
-            --parameters cosmosDbDatabaseName="telco-callcenter-agents" \
-            --parameters multiAgentEnabled="true" \
-            --parameters enableConfigUI="true" \
-            --parameters foundryEndpoint="https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni" \
-            --parameters agentId="asst_LgflhAlTTQMvnDLJp4wmOFQr" \
-            --parameters useFoundryAgent="true" \
-            --parameters acsChannelRegistrationId="5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec" \
-            --name "consolidated-deployment-$(date +%Y%m%d%H%M%S)"
+          # Copy the consolidated azure.yaml to be the default one for this deployment
+          cp azure-consolidated.yaml azure.yaml
+          azd up --no-prompt
         shell: bash
         env:
+          # Azure credentials for azd to use
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # Infrastructure parameters matching main-consolidated.parameters.json
+          AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+          AZURE_PRINCIPAL_ID: ${{ secrets.AZURE_PRINCIPAL_ID }}
+          AZURE_OPENAI_NAME: ${{ secrets.OPENAI_NAME }}
+          AZURE_OPENAI_RG: ${{ secrets.OPENAI_RESOURCE_GROUP_NAME }}
+          EMAIL_RECIPIENT_ADDRESS: ${{ secrets.EMAIL_RECIPIENT_ADDRESS }}
+          GITHUB_ACTIONS: "true"
+          # Enable OIDC authentication for azd
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          # Additional environment variables for multi-agent and foundry support
+          APPINSIGHTS_CONNECTION_STRING: ${{ env.APPINSIGHTS_CONNECTION_STRING }}
+          UAMI_CLIENT_ID: ${{ env.UAMI_CLIENT_ID }}
+          SPEECH_KEY: ${{ env.SPEECH_KEY }}
 
-      # Get deployment information and verify multi-agent setup
-      - name: Get consolidated deployment URLs and verify multi-agent setup
+      # Get deployment information and verify setup
+      - name: Get consolidated deployment URLs and verify setup
         run: |
           echo "📋 Consolidated Deployment Information:"
           echo "Environment: ${{ secrets.AZURE_ENV_NAME }}"
@@ -220,51 +134,33 @@ jobs:
           echo ""
           echo "🔗 Application URLs:"
           echo ""
-          echo "📊 All Container Apps in Resource Group:"
-          az containerapp list --resource-group "rg-${{ secrets.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table || echo "Container apps will be listed after deployment"
+          echo "📊 Container Apps in Resource Group:"
+          az containerapp list --resource-group "rg-${{ secrets.AZURE_ENV_NAME }}" --query "[].{Name:name,Status:properties.provisioningState,FQDN:properties.configuration.ingress.fqdn}" --output table
           
           echo ""
-          echo "🗄️ Verifying Multi-Agent Cosmos DB Setup:"
-          COSMOS_ACCOUNT="devcosmos2wfnxagc7mn5g"
-          DATABASE_NAME="telco-callcenter-agents"
-          RG_NAME="rg-${{ secrets.AZURE_ENV_NAME }}"
-          
-          # List containers in the multi-agent database
-          echo "Containers in $DATABASE_NAME database:"
-          az cosmosdb sql container list \
-            --account-name $COSMOS_ACCOUNT \
-            --database-name $DATABASE_NAME \
-            --resource-group $RG_NAME \
-            --query "[].{Name:name,PartitionKey:resource.partitionKey.paths[0]}" \
-            --output table || echo "Database containers will be listed after creation"
-          
-          echo ""
-          echo "🔧 Multi-Agent Configuration UI should be available at:"
-          echo "Backend URL/config - for agent and channel management"
+          echo "� Azure AI Foundry Integration:"
+          echo "Foundry Endpoint: https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni"
+          echo "Agent ID: asst_LgflhAlTTQMvnDLJp4wmOFQr"
         shell: bash
 
       # Deployment completion message
       - name: Deployment Summary
         run: |
-          echo "✅ Multi-Agent Deployment completed successfully!"
+          echo "✅ Consolidated Deployment completed successfully using Azure Developer CLI (azd)!"
           echo ""
           echo "🎯 What was deployed:"
           echo "   • Consolidated backend with multi-agent routing support"
           echo "   • Chainlit frontend with Azure AI Foundry integration"
-          echo "   • Configuration UI for managing agents and channels"
-          echo "   • Cosmos DB containers for multi-agent configuration"
-          echo "   • RBAC permissions for managed identity access"
+          echo "   • Docker containers built and deployed to Azure Container Apps"
+          echo "   • Infrastructure provisioned using Bicep templates"
           echo ""
           echo "🔧 Next steps:"
           echo "   1. Access the Chainlit chat interface at: [Frontend URL]"
-          echo "   2. Access the configuration UI at: [Backend URL]/config"
-          echo "   3. Add your WhatsApp Business numbers as channels"
-          echo "   4. Configure AI agents for each channel"
-          echo "   5. Test the multi-agent routing functionality"
+          echo "   2. Test the Azure AI Foundry agent integration"
+          echo "   3. Configure additional WhatsApp Business numbers if needed"
           echo ""
           echo "📚 Documentation:"
-          echo "   • Multi-agent setup guide: consolidated-backend/MULTI_AGENT_SETUP_GUIDE.md"
-          echo "   • Messaging connect: consolidated-backend/MESSAGING_CONNECT_README.md"
           echo "   • Frontend setup: consolidated-frontend/README.md"
+          echo "   • Backend setup: consolidated-backend/README.md"
         shell: bash
         if: always() # Always show summary, even if deployment fails
