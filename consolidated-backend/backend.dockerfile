@@ -20,18 +20,17 @@ COPY config_manager.py .
 COPY multi_agent_router.py .
 COPY servicebus_processor.py .
 COPY start_services.py .
+COPY conversation_store.py .
+COPY multi_container_conversation_store.py .
+COPY container_manager.py .
+COPY setup_config.py .
+COPY host.json .
+COPY foundry_agent.py .
+COPY function_app.py .
 
-# Copy shared utilities and routers from parent directories
-COPY ../api/routers ./routers
+# Copy routers and utilities from consolidated backend
 COPY routers/ ./routers/
 COPY templates ./templates
-COPY ../api/utils ./utils
-COPY ../api/conversation_store.py .
-COPY ../api/foundry_agent.py .
-
-# Copy functions code
-COPY ../functions/foundry_agent.py ./functions_foundry_agent.py
-COPY ../functions/function_app.py ./function_app.py
 
 # Create logs directory
 RUN mkdir -p /app/logs
