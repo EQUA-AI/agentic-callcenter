@@ -1,0 +1,343 @@
+/* Additional animations and service indicator styles */
+
+/* === SERVICE INDICATORS === */
+.service-indicators {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-md) !important;
+  margin-left: auto !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--radius-lg) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.service-indicators.mobile {
+  gap: var(--spacing-sm) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+}
+
+.indicator {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-xs) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  position: relative !important;
+}
+
+.indicator:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: scale(1.05) !important;
+}
+
+.indicator-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  animation: pulse-status 2s ease-in-out infinite !important;
+  position: relative !important;
+}
+
+.indicator-dot::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: -2px !important;
+  right: -2px !important;
+  bottom: -2px !important;
+  border-radius: 50% !important;
+  border: 2px solid currentColor !important;
+  opacity: 0 !important;
+  animation: ring-pulse 2s ease-in-out infinite !important;
+}
+
+.indicator-label {
+  font-size: 1rem !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) !important;
+}
+
+/* Status-specific colors */
+.status-online {
+  background: var(--secondary-color) !important;
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.5) !important;
+}
+
+.status-busy {
+  background: var(--warning-color) !important;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.5) !important;
+}
+
+.status-offline {
+  background: var(--text-muted) !important;
+  box-shadow: 0 0 10px rgba(148, 163, 184, 0.5) !important;
+}
+
+/* === PROFILE PREVIEW === */
+.profile-preview {
+  position: fixed !important;
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  z-index: 1000 !important;
+  max-width: 300px !important;
+  opacity: 0 !important;
+  transform: translateY(-10px) !important;
+  transition: all 0.2s ease !important;
+  pointer-events: none !important;
+}
+
+.profile-preview.show {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.preview-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-sm) !important;
+  margin-bottom: var(--spacing-sm) !important;
+  padding-bottom: var(--spacing-sm) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.preview-emoji {
+  font-size: 1.5rem !important;
+}
+
+.preview-name {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+.preview-greeting {
+  font-size: 0.875rem !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.5 !important;
+}
+
+/* === LOADING OVERLAY === */
+.loading-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(5px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  transition: opacity 0.5s ease !important;
+}
+
+.loading-content {
+  text-align: center !important;
+  color: var(--text-primary) !important;
+}
+
+.loading-spinner {
+  width: 40px !important;
+  height: 40px !important;
+  border: 3px solid var(--border-color) !important;
+  border-top: 3px solid var(--primary-color) !important;
+  border-radius: 50% !important;
+  animation: spin 1s linear infinite !important;
+  margin: 0 auto var(--spacing-md) !important;
+}
+
+.loading-text {
+  font-size: 1.1rem !important;
+  font-weight: 500 !important;
+  animation: pulse 1.5s ease-in-out infinite !important;
+}
+
+/* === MESSAGE ANIMATIONS === */
+.message-entering {
+  animation: messageSlideIn 0.3s ease !important;
+}
+
+.greeting-message {
+  background: linear-gradient(135deg, var(--secondary-color)10 0%, var(--bg-primary) 100%) !important;
+  border: 1px solid var(--secondary-color) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-lg) !important;
+  margin: var(--spacing-md) 0 !important;
+  animation: fadeInUp 0.5s ease !important;
+}
+
+.message-content {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-sm) !important;
+}
+
+.greeting-text {
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+}
+
+/* === ENHANCED ANIMATIONS === */
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-status {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes ring-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 15px currentColor;
+  }
+}
+
+/* === MOBILE LAYOUT ENHANCEMENTS === */
+.mobile-layout .service-indicators {
+  flex-direction: column !important;
+  position: fixed !important;
+  top: 60px !important;
+  right: 10px !important;
+  background: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.mobile-layout .indicator {
+  width: 100% !important;
+  justify-content: center !important;
+}
+
+.mobile-layout .profile-preview {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 90vw !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+}
+
+.mobile-layout .profile-preview.show {
+  transform: translate(-50%, -50%) !important;
+}
+
+/* === ACCESSIBILITY ENHANCEMENTS === */
+.indicator:focus {
+  outline: 2px solid var(--primary-color) !important;
+  outline-offset: 2px !important;
+}
+
+.chat-profile:focus {
+  outline: 2px solid var(--primary-color) !important;
+  outline-offset: 2px !important;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* === HIGH CONTRAST MODE === */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #000000;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f0f0f0;
+  }
+}
+
+/* === THEME VARIATIONS === */
+.callcenter-interface.dark-mode {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-color: #334155;
+}
+
+.callcenter-interface.dark-mode .loading-overlay {
+  background: rgba(15, 23, 42, 0.95) !important;
+}
+
+.callcenter-interface.dark-mode .service-indicators {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* === PRINT STYLES === */
+@media print {
+  .service-indicators,
+  .loading-overlay,
+  .profile-preview {
+    display: none !important;
+  }
+  
+  .message {
+    break-inside: avoid !important;
+    margin-bottom: var(--spacing-sm) !important;
+  }
+}

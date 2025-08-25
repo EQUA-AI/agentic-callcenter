@@ -1,0 +1,491 @@
+/* Custom CSS for Multi-Agent Call Center Interface */
+
+/* === FIREFOX TEXT RENDERING FIXES === */
+/* Firefox-specific fixes for text rendering ghosting */
+@-moz-document url-prefix() {
+    /* Hide all icons and images that might cause ghosting */
+    img, svg, .icon, [class*="icon"], [class*="Icon"] {
+        display: none !important;
+    }
+    
+    /* Hide any emoji or icon rendering elements */
+    .emoji, [class*="emoji"], [data-emoji] {
+        display: none !important;
+    }
+    
+    /* Force clean dropdown menu without any icons */
+    .MuiMenuItem-root * {
+        background-image: none !important;
+        list-style: none !important;
+    }
+    
+    /* Fix missing image handling - this is likely the root cause */
+    img::before, img::after {
+        display: none !important;
+        content: none !important;
+    }
+    
+    /* Disable all transforms and effects that cause ghosting */
+    * {
+        transform: none !important;
+        will-change: auto !important;
+        backface-visibility: visible !important;
+        perspective: none !important;
+        filter: none !important;
+        text-shadow: none !important;
+    }
+    
+    /* Force simple, clean text rendering */
+    body, body * {
+        text-rendering: auto !important;
+        -moz-osx-font-smoothing: auto !important;
+        -webkit-font-smoothing: auto !important;
+        font-smooth: auto !important;
+        text-rendering: geometricPrecision !important;
+    }
+    
+    /* Specific fixes for header area */
+    header, .MuiToolbar-root, .MuiAppBar-root, [class*="header"], [class*="Header"] {
+        text-rendering: geometricPrecision !important;
+        -moz-osx-font-smoothing: auto !important;
+        font-variant-ligatures: none !important;
+    }
+    
+    /* Specific fixes for dropdown menu */
+    .MuiSelect-select, .MuiFormControl-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiList-root {
+        text-rendering: geometricPrecision !important;
+        -moz-osx-font-smoothing: auto !important;
+        font-variant-ligatures: none !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Remove any CSS that might cause visual effects */
+    .MuiButton-root, button, .MuiIconButton-root {
+        text-rendering: geometricPrecision !important;
+        -moz-osx-font-smoothing: auto !important;
+        background: #f5f5f5 !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    /* Typography fixes */
+    .MuiTypography-root, span, div, p, label, h1, h2, h3, h4, h5, h6 {
+        text-rendering: geometricPrecision !important;
+        -moz-osx-font-smoothing: auto !important;
+        font-variant-ligatures: none !important;
+    }
+}
+
+/* General improved text rendering for all browsers */
+* {
+    text-rendering: auto;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+    backface-visibility: visible;
+}
+
+/* Handle missing/broken images to prevent layout issues */
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Hide broken image icons that might cause layout shifts */
+img[src=""], img:not([src]), img[src="#"] {
+    display: none !important;
+}
+
+/* Ensure broken images don't create pseudo-elements */
+img::before, img::after {
+    display: none !important;
+}
+
+/* Force hardware acceleration for all text elements to prevent ghosting */
+h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input, select, textarea {
+    will-change: auto;
+    transform: none;
+    backface-visibility: visible;
+}
+
+/* Super aggressive Firefox fix for any remaining ghosting - DISABLED */
+/* We're using a different approach above instead */
+
+/* === ROOT VARIABLES === */
+:root {
+  /* Brand Colors */
+  --primary-color: #2563eb;        /* Professional blue */
+  --secondary-color: #059669;      /* Success green */
+  --accent-color: #dc2626;         /* Alert red */
+  --warning-color: #d97706;        /* Warning orange */
+  
+  /* Service-specific Colors */
+  --hajj-color: #16a34a;           /* Islamic green */
+  --wedding-color: #be185d;        /* Wedding pink */
+  --telco-color: #2563eb;          /* Tech blue */
+  
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #e2e8f0;
+  --bg-dark: #1e293b;
+  
+  /* Text Colors */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-white: #ffffff;
+  
+  /* Border and Shadow */
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* === GLOBAL STYLES === */
+
+/* Main container styling */
+#root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  min-height: 100vh;
+}
+
+/* Header customization */
+.MuiAppBar-root {
+  background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.MuiToolbar-root {
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+}
+
+/* Firefox-specific header fixes - simplified approach */
+@-moz-document url-prefix() {
+    .MuiAppBar-root, .MuiToolbar-root {
+        text-rendering: auto !important;
+        -moz-osx-font-smoothing: auto !important;
+        transform: none !important;
+        filter: none !important;
+    }
+    
+    .MuiAppBar-root *, .MuiToolbar-root * {
+        text-rendering: auto !important;
+        -moz-osx-font-smoothing: auto !important;
+        transform: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+    }
+}
+
+/* Chat interface styling */
+.MuiContainer-root {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: var(--spacing-lg) !important;
+}
+
+/* === CHAT MESSAGES === */
+
+/* User message bubbles */
+.message-user {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%) !important;
+  color: var(--text-white) !important;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg) !important;
+  box-shadow: var(--shadow-md) !important;
+  margin: var(--spacing-sm) 0 !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+}
+
+/* Assistant message bubbles */
+.message-assistant {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm) !important;
+  box-shadow: var(--shadow-sm) !important;
+  margin: var(--spacing-sm) 0 !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+}
+
+/* Service-specific message colors */
+.message-hajj {
+  border-left: 4px solid var(--hajj-color) !important;
+}
+
+.message-wedding {
+  border-left: 4px solid var(--wedding-color) !important;
+}
+
+.message-telco {
+  border-left: 4px solid var(--telco-color) !important;
+}
+
+/* === INPUT AREA === */
+
+/* Chat input container */
+.MuiOutlinedInput-root {
+  border-radius: var(--radius-xl) !important;
+  background: var(--bg-primary) !important;
+  border: 2px solid var(--border-color) !important;
+  transition: all 0.2s ease !important;
+}
+
+.MuiOutlinedInput-root:hover {
+  border-color: var(--primary-color) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.MuiOutlinedInput-root.Mui-focused {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1) !important;
+}
+
+/* Send button styling */
+.MuiButton-containedPrimary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+  border-radius: var(--radius-xl) !important;
+  padding: var(--spacing-md) var(--spacing-xl) !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  box-shadow: var(--shadow-md) !important;
+  transition: all 0.2s ease !important;
+}
+
+.MuiButton-containedPrimary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* === CHAT PROFILES === */
+
+/* Profile selector styling */
+.chat-profiles-container {
+  background: var(--bg-primary) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-lg) !important;
+  margin-bottom: var(--spacing-lg) !important;
+  box-shadow: var(--shadow-md) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Individual profile cards */
+.chat-profile {
+  background: var(--bg-secondary) !important;
+  border: 2px solid transparent !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-lg) !important;
+  margin: var(--spacing-sm) !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.chat-profile:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.chat-profile.active {
+  border-color: var(--primary-color) !important;
+  background: linear-gradient(135deg, var(--primary-color)10 0%, var(--bg-primary) 100%) !important;
+}
+
+/* Service-specific profile styling */
+.profile-hajj {
+  border-left: 4px solid var(--hajj-color) !important;
+}
+
+.profile-hajj:hover, .profile-hajj.active {
+  border-color: var(--hajj-color) !important;
+  box-shadow: 0 4px 20px rgb(22 163 74 / 0.2) !important;
+}
+
+.profile-wedding {
+  border-left: 4px solid var(--wedding-color) !important;
+}
+
+.profile-wedding:hover, .profile-wedding.active {
+  border-color: var(--wedding-color) !important;
+  box-shadow: 0 4px 20px rgb(190 24 93 / 0.2) !important;
+}
+
+.profile-telco {
+  border-left: 4px solid var(--telco-color) !important;
+}
+
+.profile-telco:hover, .profile-telco.active {
+  border-color: var(--telco-color) !important;
+  box-shadow: 0 4px 20px rgb(37 99 235 / 0.2) !important;
+}
+
+/* === SIDEBAR === */
+
+/* Sidebar styling */
+.MuiDrawer-paper {
+  background: var(--bg-primary) !important;
+  border-right: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Sidebar list items */
+.MuiListItem-root {
+  border-radius: var(--radius-md) !important;
+  margin: var(--spacing-xs) var(--spacing-sm) !important;
+  transition: all 0.2s ease !important;
+}
+
+.MuiListItem-root:hover {
+  background: var(--bg-secondary) !important;
+  transform: translateX(4px) !important;
+}
+
+/* === LOADING STATES === */
+
+/* Loading indicator */
+.loading-indicator {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: var(--spacing-lg) !important;
+}
+
+.loading-dots {
+  display: inline-flex !important;
+  gap: var(--spacing-xs) !important;
+}
+
+.loading-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: var(--primary-color) !important;
+  animation: pulse 1.5s ease-in-out infinite !important;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s !important;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s !important;
+}
+
+/* === ANIMATIONS === */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Message animation */
+.message {
+  animation: slideIn 0.3s ease-out !important;
+}
+
+/* === RESPONSIVE DESIGN === */
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .MuiContainer-root {
+    padding: var(--spacing-sm) !important;
+  }
+  
+  .chat-profile {
+    padding: var(--spacing-md) !important;
+    margin: var(--spacing-xs) !important;
+  }
+  
+  .MuiButton-containedPrimary {
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+  }
+}
+
+/* === UTILITY CLASSES === */
+
+/* Status indicators */
+.status-online {
+  color: var(--secondary-color) !important;
+}
+
+.status-busy {
+  color: var(--warning-color) !important;
+}
+
+.status-offline {
+  color: var(--text-muted) !important;
+}
+
+/* Service badges */
+.service-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: var(--spacing-xs) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--radius-sm) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+}
+
+.badge-hajj {
+  background: rgb(22 163 74 / 0.1) !important;
+  color: var(--hajj-color) !important;
+}
+
+.badge-wedding {
+  background: rgb(190 24 93 / 0.1) !important;
+  color: var(--wedding-color) !important;
+}
+
+.badge-telco {
+  background: rgb(37 99 235 / 0.1) !important;
+  color: var(--telco-color) !important;
+}
+
+/* === DARK MODE SUPPORT === */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --border-color: #334155;
+  }
+}

@@ -21,13 +21,23 @@ class MultiContainerConversationStore:
     def __init__(self, cosmos_endpoint: str = None, database_name: str = None):
         self.cosmos_endpoint = cosmos_endpoint or os.getenv("COSMOSDB_ENDPOINT")
         self.database_name = database_name or os.getenv("COSMOSDB_DATABASE", "CallCenterDB")
-        self.credential = DefaultAzureCredential()
         
         if not self.cosmos_endpoint:
             raise ValueError("COSMOSDB_ENDPOINT environment variable is required")
         
-        # Initialize client and database
-        self.client = CosmosClient(self.cosmos_endpoint, credential=self.credential)
+        # Try connection string first, then managed identity
+        cosmos_key = os.getenv("COSMOSDB_KEY")
+        if cosmos_key:
+            # Use connection string authentication
+            self.client = CosmosClient(self.cosmos_endpoint, credential=cosmos_key)
+            logger.info("Using Cosmos DB key authentication")
+        else:
+            # Use managed identity authentication
+            self.credential = DefaultAzureCredential()
+            self.client = CosmosClient(self.cosmos_endpoint, credential=self.credential)
+            logger.info("Using managed identity authentication")
+        
+        # Initialize database
         self.database = self.client.create_database_if_not_exists(id=self.database_name)
         
         # Cache for container clients
