@@ -158,30 +158,73 @@ function hideProcessingMessages() {
 function setupDynamicHeaderTitle() {
     // Function to update header title based on current service
     function updateHeaderTitle(serviceName) {
-        const headerTitle = document.querySelector('.MuiToolbar-root h6, .MuiToolbar-root .MuiTypography-h6, header h1, header .title');
+        // More comprehensive selector for header title
+        const headerSelectors = [
+            '.MuiToolbar-root h6',
+            '.MuiToolbar-root .MuiTypography-h6', 
+            '.MuiToolbar-root .MuiTypography-root',
+            'header h1',
+            'header .title',
+            '.MuiAppBar-root h6',
+            '.MuiAppBar-root .MuiTypography-h6',
+            '.MuiAppBar-root .MuiTypography-root'
+        ];
+        
+        let headerTitle = null;
+        for (const selector of headerSelectors) {
+            headerTitle = document.querySelector(selector);
+            if (headerTitle) break;
+        }
+        
         if (headerTitle) {
             if (serviceName === 'EPCON AI') {
-                headerTitle.textContent = 'EPCON AI';
+                headerTitle.textContent = 'Epcon AI & Spare Parts';
+                console.log('🎯 Header updated to: Epcon AI & Spare Parts');
+            } else if (serviceName === 'Hajj & Umrah Services') {
+                headerTitle.textContent = 'Hajj & Umrah Services';
+                console.log('🎯 Header updated to: Hajj & Umrah Services');
+            } else if (serviceName === 'Wedding Planning') {
+                headerTitle.textContent = 'Wedding Planning Services';
+                console.log('🎯 Header updated to: Wedding Planning Services');
             } else if (serviceName) {
                 headerTitle.textContent = serviceName;
+                console.log('🎯 Header updated to:', serviceName);
             } else {
                 headerTitle.textContent = 'Multi-Agent Call Center';
+                console.log('🎯 Header updated to default: Multi-Agent Call Center');
             }
+        } else {
+            console.log('⚠️ Header title element not found');
         }
     }
 
-    // Monitor for profile changes
+    // Monitor for profile changes with enhanced detection
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.type === 'childList') {
                 // Check if dropdown value changed
                 const dropdown = document.querySelector('.MuiSelect-select, [role="button"][aria-haspopup="listbox"]');
                 if (dropdown) {
-                    const selectedText = dropdown.textContent;
+                    const selectedText = dropdown.textContent.trim();
                     if (selectedText && selectedText !== 'Multi-Agent Call Center') {
                         updateHeaderTitle(selectedText);
                     }
                 }
+                
+                // Also check for profile selection changes in the chat interface
+                const profileCards = document.querySelectorAll('[class*="profile"], .chat-profile, .MuiCard-root');
+                profileCards.forEach(card => {
+                    if (card.classList.contains('selected') || card.classList.contains('active')) {
+                        const profileText = card.textContent;
+                        if (profileText.includes('EPCON AI')) {
+                            updateHeaderTitle('EPCON AI');
+                        } else if (profileText.includes('Hajj')) {
+                            updateHeaderTitle('Hajj & Umrah Services');
+                        } else if (profileText.includes('Wedding')) {
+                            updateHeaderTitle('Wedding Planning');
+                        }
+                    }
+                });
             }
         });
     });
@@ -189,17 +232,48 @@ function setupDynamicHeaderTitle() {
     // Start observing
     observer.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'aria-selected']
     });
 
     // Also listen for click events on dropdown items
     document.addEventListener('click', function(event) {
         const menuItem = event.target.closest('.MuiMenuItem-root');
         if (menuItem) {
-            const serviceText = menuItem.textContent;
+            const serviceText = menuItem.textContent.trim();
             setTimeout(() => updateHeaderTitle(serviceText), 100);
         }
+        
+        // Listen for profile card clicks
+        const profileCard = event.target.closest('[class*="profile"], .chat-profile');
+        if (profileCard) {
+            const profileText = profileCard.textContent;
+            setTimeout(() => {
+                if (profileText.includes('EPCON AI')) {
+                    updateHeaderTitle('EPCON AI');
+                } else if (profileText.includes('Hajj')) {
+                    updateHeaderTitle('Hajj & Umrah Services');
+                } else if (profileText.includes('Wedding')) {
+                    updateHeaderTitle('Wedding Planning');
+                }
+            }, 100);
+        }
     });
+    
+    // Initial header update on page load
+    setTimeout(() => {
+        const dropdown = document.querySelector('.MuiSelect-select, [role="button"][aria-haspopup="listbox"]');
+        if (dropdown) {
+            const selectedText = dropdown.textContent.trim();
+            if (selectedText && selectedText !== 'Multi-Agent Call Center') {
+                updateHeaderTitle(selectedText);
+            }
+        } else {
+            // If no dropdown found, set default
+            updateHeaderTitle('');
+        }
+    }, 1000);
 }
 
 // Initialize the interface

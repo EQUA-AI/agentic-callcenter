@@ -152,6 +152,40 @@ h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input, select, textarea 
   padding: var(--spacing-md) var(--spacing-lg) !important;
 }
 
+/* Dynamic header title styling */
+.MuiToolbar-root h6,
+.MuiToolbar-root .MuiTypography-h6,
+.MuiToolbar-root .MuiTypography-root,
+.MuiAppBar-root h6,
+.MuiAppBar-root .MuiTypography-h6,
+.MuiAppBar-root .MuiTypography-root {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  color: var(--text-white) !important;
+  text-align: center !important;
+  flex: 1 !important;
+  margin: 0 auto !important;
+  letter-spacing: 0.025em !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Service-specific header styling */
+.MuiToolbar-root h6:has-text("Epcon AI & Spare Parts"),
+.MuiToolbar-root .MuiTypography-root:has-text("Epcon AI & Spare Parts") {
+  color: #ffffff !important;
+  background: linear-gradient(45deg, #2563eb, #1d4ed8) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* Ensure header title is visible and properly positioned */
+.MuiToolbar-root {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
 /* Firefox-specific header fixes - simplified approach */
 @-moz-document url-prefix() {
     .MuiAppBar-root, .MuiToolbar-root {
