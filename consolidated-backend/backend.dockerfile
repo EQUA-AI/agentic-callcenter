@@ -10,28 +10,28 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY consolidated-backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy consolidated backend application code
-COPY consolidated-backend/app.py .
-COPY consolidated-backend/messaging_connect.py .
-COPY consolidated-backend/config_manager.py .
-COPY consolidated-backend/multi_agent_router.py .
-COPY consolidated-backend/servicebus_processor.py .
-COPY consolidated-backend/start_services.py .
+COPY app.py .
+COPY messaging_connect.py .
+COPY config_manager.py .
+COPY multi_agent_router.py .
+COPY servicebus_processor.py .
+COPY start_services.py .
 
 # Copy shared utilities and routers from parent directories
-COPY api/routers ./routers
-COPY consolidated-backend/routers/ ./routers/
-COPY consolidated-backend/templates ./templates
-COPY api/utils ./utils
-COPY api/conversation_store.py .
-COPY api/foundry_agent.py .
+COPY ../api/routers ./routers
+COPY routers/ ./routers/
+COPY templates ./templates
+COPY ../api/utils ./utils
+COPY ../api/conversation_store.py .
+COPY ../api/foundry_agent.py .
 
 # Copy functions code
-COPY functions/foundry_agent.py ./functions_foundry_agent.py
-COPY functions/function_app.py ./function_app.py
+COPY ../functions/foundry_agent.py ./functions_foundry_agent.py
+COPY ../functions/function_app.py ./function_app.py
 
 # Create logs directory
 RUN mkdir -p /app/logs

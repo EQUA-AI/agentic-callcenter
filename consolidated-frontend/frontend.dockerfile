@@ -13,28 +13,28 @@ RUN apt-get update && apt-get install -y \
 RUN echo "=== Docker Build Debug ==="
 
 # Copy requirements and install Python dependencies first (for better caching)
-COPY consolidated-frontend/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Chainlit application files
-COPY consolidated-frontend/chainlit_app.py ./chainlit_app.py
-COPY consolidated-frontend/azure_foundry_client.py ./azure_foundry_client.py
-COPY consolidated-frontend/chainlit.md ./chainlit.md
+COPY chainlit_app.py ./chainlit_app.py
+COPY azure_foundry_client.py ./azure_foundry_client.py
+COPY chainlit.md ./chainlit.md
 
 # Create directories for Chainlit
 RUN mkdir -p /app/.chainlit/translations /app/public /app/.files /app/logs
 
 # Copy Chainlit configuration file
-COPY consolidated-frontend/.chainlit/config.toml ./.chainlit/config.toml
+COPY .chainlit/config.toml ./.chainlit/config.toml
 
 # Copy all translation files using wildcard
-COPY consolidated-frontend/.chainlit/translations/*.json ./.chainlit/translations/
+COPY .chainlit/translations/*.json ./.chainlit/translations/
 
 # Copy public assets
-COPY consolidated-frontend/public/animations.css ./public/animations.css
-COPY consolidated-frontend/public/custom.css ./public/custom.css  
-COPY consolidated-frontend/public/custom.js ./public/custom.js
-COPY consolidated-frontend/public/placeholder.png ./public/placeholder.png
+COPY public/animations.css ./public/animations.css
+COPY public/custom.css ./public/custom.css  
+COPY public/custom.js ./public/custom.js
+COPY public/placeholder.png ./public/placeholder.png
 
 # Set environment variables for Chainlit
 ENV PYTHONPATH=/app
