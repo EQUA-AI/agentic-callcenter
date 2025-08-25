@@ -27,10 +27,15 @@ COPY setup_config.py .
 COPY host.json .
 COPY foundry_agent.py .
 COPY function_app.py .
+COPY startup_diagnostic.py .
+COPY startup.sh .
 
 # Copy routers and utilities from consolidated backend
 COPY routers/ ./routers/
 COPY templates ./templates
+
+# Make startup script executable
+RUN chmod +x startup.sh
 
 # Create logs directory
 RUN mkdir -p /app/logs
@@ -48,4 +53,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Start the application
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./startup.sh"]

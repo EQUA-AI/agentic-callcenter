@@ -298,10 +298,43 @@ servicebus_processor = ServiceBusBackgroundProcessor(
 # FastAPI lifecycle events
 @app.on_event("startup")
 async def startup_event():
-    """Start background services"""
+    """Start background services with improved error handling"""
     logger.info("🚀 Starting consolidated backend services...")
-    await servicebus_processor.start()
-    logger.info("✅ All services started successfully!")
+    
+    try:
+        # Check critical environment variables
+        required_vars = [
+            'ServiceBusConnection__fullyQualifiedNamespace',
+            'ACS_ENDPOINT',
+            'AZURE_OPENAI_ENDPOINT',
+            'AZURE_AI_FOUNDRY_ENDPOINT'
+        ]
+        
+        missing_vars = []
+        for var in required_vars:
+            if not os.getenv(var):
+                missing_vars.append(var)
+        
+        if missing_vars:
+            logger.error(f"❌ Missing required environment variables: {missing_vars}")
+            logger.error("🚨 Service may not function properly!")
+        else:
+            logger.info("✅ All required environment variables are set")
+        
+        # Start Service Bus processor with error handling
+        try:
+            await servicebus_processor.start()
+            logger.info("✅ Service Bus processor started successfully")
+        except Exception as e:
+            logger.error(f"⚠️ Service Bus processor failed to start: {e}")
+            logger.info("📝 Service will continue without Service Bus processing")
+        
+        logger.info("✅ Backend services startup completed!")
+        
+    except Exception as e:
+        logger.error(f"❌ Critical error during startup: {e}")
+        # Don't exit - allow container to start for debugging
+        logger.info("🔧 Container will continue for debugging purposes")
 
 @app.on_event("shutdown") 
 async def shutdown_event():
@@ -441,6 +474,35 @@ async def health_check():
         logger.error(f"Health check failed: {e}")
         return JSONResponse(status_code=500, content={
             "status": "unhealthy", 
+            "error": str(e),
+            "service": "consolidated-backend"
+        })
+
+# Debug endpoint for diagnosing issues
+@app.get("/debug/env")
+async def debug_environment():
+    """Debug endpoint to check environment configuration"""
+    try:
+        env_check = {
+            "ServiceBusConnection__fullyQualifiedNamespace": bool(os.getenv("ServiceBusConnection__fullyQualifiedNamespace")),
+            "ACS_ENDPOINT": bool(os.getenv("ACS_ENDPOINT")),
+            "AZURE_OPENAI_ENDPOINT": bool(os.getenv("AZURE_OPENAI_ENDPOINT")),
+            "AZURE_AI_FOUNDRY_ENDPOINT": bool(os.getenv("AZURE_AI_FOUNDRY_ENDPOINT")),
+            "AGENT_ID": bool(os.getenv("AGENT_ID")),
+            "SMS_CHANNEL_ID": bool(os.getenv("SMS_CHANNEL_ID")),
+            "WHATSAPP_CHANNEL_ID": bool(os.getenv("WHATSAPP_CHANNEL_ID")),
+            "APPLICATIONINSIGHTS_CONNECTIONSTRING": bool(os.getenv("APPLICATIONINSIGHTS_CONNECTIONSTRING")),
+            "AZURE_COSMOS_CONNECTION_STRING": bool(os.getenv("AZURE_COSMOS_CONNECTION_STRING"))
+        }
+        
+        return {
+            "service": "consolidated-backend",
+            "environment_variables": env_check,
+            "missing_vars": [k for k, v in env_check.items() if not v],
+            "servicebus_processor_running": servicebus_processor.running if hasattr(servicebus_processor, 'running') else False
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
             "error": str(e),
             "service": "consolidated-backend"
         })
