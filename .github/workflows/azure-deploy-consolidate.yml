@@ -152,8 +152,8 @@ jobs:
           docker build -f consolidated-backend/backend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-backend:latest .
           docker push $ACR_NAME.azurecr.io/consolidated-backend:latest
           
-          # Build and push frontend image (Voice + UI) from root context
-          echo "Building consolidated frontend image..."
+          # Build and push frontend image (Chainlit + Azure AI Foundry) from root context
+          echo "Building consolidated frontend image (Chainlit)..."
           docker build -f consolidated-frontend/frontend.dockerfile -t $ACR_NAME.azurecr.io/consolidated-frontend:latest .
           docker push $ACR_NAME.azurecr.io/consolidated-frontend:latest
           
@@ -184,6 +184,10 @@ jobs:
             --parameters cosmosDbDatabaseName="telco-callcenter-agents" \
             --parameters multiAgentEnabled="true" \
             --parameters enableConfigUI="true" \
+            --parameters foundryEndpoint="https://weddingomni.services.ai.azure.com/api/projects/WeddingOmni" \
+            --parameters agentId="asst_LgflhAlTTQMvnDLJp4wmOFQr" \
+            --parameters useFoundryAgent="true" \
+            --parameters acsChannelRegistrationId="5b42b7cd-1bfe-4f94-acc9-7f46b19cb5ec" \
             --name "consolidated-deployment-$(date +%Y%m%d%H%M%S)"
         shell: bash
         env:
@@ -230,18 +234,21 @@ jobs:
           echo ""
           echo "🎯 What was deployed:"
           echo "   • Consolidated backend with multi-agent routing support"
+          echo "   • Chainlit frontend with Azure AI Foundry integration"
           echo "   • Configuration UI for managing agents and channels"
           echo "   • Cosmos DB containers for multi-agent configuration"
           echo "   • RBAC permissions for managed identity access"
           echo ""
           echo "🔧 Next steps:"
-          echo "   1. Access the configuration UI at: [Backend URL]/config"
-          echo "   2. Add your WhatsApp Business numbers as channels"
-          echo "   3. Configure AI agents for each channel"
-          echo "   4. Test the multi-agent routing functionality"
+          echo "   1. Access the Chainlit chat interface at: [Frontend URL]"
+          echo "   2. Access the configuration UI at: [Backend URL]/config"
+          echo "   3. Add your WhatsApp Business numbers as channels"
+          echo "   4. Configure AI agents for each channel"
+          echo "   5. Test the multi-agent routing functionality"
           echo ""
           echo "📚 Documentation:"
           echo "   • Multi-agent setup guide: consolidated-backend/MULTI_AGENT_SETUP_GUIDE.md"
           echo "   • Messaging connect: consolidated-backend/MESSAGING_CONNECT_README.md"
+          echo "   • Frontend setup: consolidated-frontend/README.md"
         shell: bash
         if: always() # Always show summary, even if deployment fails

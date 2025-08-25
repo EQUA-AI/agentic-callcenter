@@ -194,10 +194,14 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
             { name: 'APPLICATIONINSIGHTS_CONNECTIONSTRING', value: applicationInsightsConnectionString }
             { name: 'ACS_ENDPOINT', value: acsEndpoint }
             { name: 'ACS_CHANNEL_REGISTRATION_ID', value: acsChannelRegistrationId }
+            // Azure AI Foundry configuration for Chainlit app
+            { name: 'AZURE_AI_FOUNDRY_ENDPOINT', value: foundryEndpoint }
+            { name: 'AGENT_ID', value: agentId }
+            { name: 'USE_FOUNDRY_AGENT', value: useFoundryAgent }
             // Backend service URLs (single backend for now, ready for load balancing)
             { name: 'BACKEND_PRIMARY_URL', value: 'http://${backendContainerApp.name}' }
             { name: 'BACKEND_SECONDARY_URL', value: 'http://${backendContainerApp.name}' }  // Same as primary for now
-            // Voice-specific environment variables
+            // Voice-specific environment variables (kept for compatibility)
             { name: 'VOICE_NAME', value: 'en-US-AvaMultilingualNeural' }
             { name: 'COGNITIVE_SERVICE_ENDPOINT', value: cognitiveServiceEndpoint }
             { name: 'AZURE_OPENAI_WHISPER_ENDPOINT', value: openAiEndpoint }
@@ -211,6 +215,9 @@ resource frontendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
             { name: 'ENABLE_VOICE', value: 'true' }
             { name: 'ENABLE_CHAT', value: 'true' }
             { name: 'LOAD_BALANCING_MODE', value: 'single' }  // For future expansion
+            // Chainlit specific environment variables
+            { name: 'CHAINLIT_HOST', value: '0.0.0.0' }
+            { name: 'CHAINLIT_PORT', value: '8080' }
           ]
         }
       ]

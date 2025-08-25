@@ -1,4 +1,4 @@
-# Consolidated Frontend Dockerfile (Voice + UI)
+# Consolidated Frontend Dockerfile - Chainlit Application
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,30 +13,36 @@ RUN apt-get update && apt-get install -y \
 COPY consolidated-frontend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy consolidated frontend application code
-COPY consolidated-frontend/app.py .
+# Copy Chainlit application files
+COPY consolidated-frontend/chainlit_app.py .
+COPY consolidated-frontend/azure_foundry_client.py .
+COPY consolidated-frontend/chainlit.md .
 
-# Copy voice and UI code
-COPY voice/app.py ./voice_app.py
-COPY ui/chat.py ./ui_chat.py
+# Copy Chainlit configuration
+COPY consolidated-frontend/.chainlit ./.chainlit
 
-# Copy UI static assets
-COPY ui/public ./public
+# Copy static assets and public files
+COPY consolidated-frontend/public ./public
 
-# Create static directory for UI assets and logs
-RUN mkdir -p /app/static /app/logs
+# Create directories for Chainlit files and logs
+RUN mkdir -p /app/.files /app/logs
 
-# Set environment variables
+# Set environment variables for Chainlit
 ENV PYTHONPATH=/app
-ENV PORT=8080
+ENV CHAINLIT_HOST=0.0.0.0
+ENV CHAINLIT_PORT=8080
 ENV PYTHONUNBUFFERED=1
+
+# Default Azure AI Foundry configuration (will be overridden by container app env vars)
+ENV AZURE_AI_FOUNDRY_ENDPOINT=""
+ENV AGENT_ID=""
 
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check - Updated for Chainlit
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/ || exit 1
 
-# Start the application
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start the Chainlit application
+CMD ["python", "-m", "chainlit", "run", "chainlit_app.py", "--host", "0.0.0.0", "--port", "8080"]

@@ -1,0 +1,27 @@
+# Docker ignore for frontend build
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.venv/
+*.log
+.git/
+.gitignore
+README.md
+*.md
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.files/
+test_*.py
+*_test.py
