@@ -83,7 +83,7 @@ resource backendContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       ingress: {
-        external: false  // Internal access only
+        external: true  // Enable external access for backend API
         targetPort: 8000
         transport: 'auto'
       }
