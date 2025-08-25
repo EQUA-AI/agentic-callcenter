@@ -9,23 +9,23 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY consolidated-frontend/requirements.txt .
+# Copy requirements and install Python dependencies first (for better caching)
+COPY consolidated-frontend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy Chainlit application files
-COPY consolidated-frontend/chainlit_app.py .
-COPY consolidated-frontend/azure_foundry_client.py .
-COPY consolidated-frontend/chainlit.md .
+COPY consolidated-frontend/chainlit_app.py ./chainlit_app.py
+COPY consolidated-frontend/azure_foundry_client.py ./azure_foundry_client.py
+COPY consolidated-frontend/chainlit.md ./chainlit.md
 
-# Copy Chainlit configuration
-COPY consolidated-frontend/.chainlit ./.chainlit
+# Create directories first
+RUN mkdir -p /app/.chainlit /app/public /app/.files /app/logs
 
-# Copy static assets and public files
-COPY consolidated-frontend/public ./public
+# Copy Chainlit configuration directory (if it exists)
+COPY consolidated-frontend/.chainlit/ ./.chainlit/
 
-# Create directories for Chainlit files and logs
-RUN mkdir -p /app/.files /app/logs
+# Copy static assets and public files (if they exist)
+COPY consolidated-frontend/public/ ./public/
 
 # Set environment variables for Chainlit
 ENV PYTHONPATH=/app
