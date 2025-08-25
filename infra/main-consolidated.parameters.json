@@ -31,6 +31,15 @@
     },
     "cosmosDbDatabaseName": {
       "value": "telco-callcenter-agents"
+    },
+    "applicationInsightsConnectionString": {
+      "value": "${APPINSIGHTS_CONNECTION_STRING}"
+    },
+    "userAssignedIdentityClientId": {
+      "value": "${UAMI_CLIENT_ID}"
+    },
+    "speechServiceKey": {
+      "value": "${SPEECH_KEY}"
     }
   }
 }
