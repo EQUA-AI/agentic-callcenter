@@ -400,22 +400,13 @@ async def main(message: cl.Message):
             if not suggested_service:
                 suggested_service = "telco"
         
-        # Create processing step with service context
-        if suggested_service:
-            step_name = f"🔍 Analyzing your request... (suggesting {SERVICE_CONFIG[suggested_service]['name']})"
-        else:
-            step_name = f"🔄 {current_service} is processing your request..."
-        
-        async with cl.Step(name=step_name) as step:
-            # Send to Azure AI Foundry agent directly
-            response = await agent_connector.send_to_agent(
-                message.content, 
-                agent_type,
-                phone_number, 
-                context={"profile": current_profile}
-            )
-            
-            step.output = response
+        # Send to Azure AI Foundry agent directly (without showing processing message)
+        response = await agent_connector.send_to_agent(
+            message.content, 
+            agent_type,
+            phone_number, 
+            context={"profile": current_profile}
+        )
         
         # Prepare response with service context
         if suggested_service and agent_type not in AI_AGENTS_CONFIG:

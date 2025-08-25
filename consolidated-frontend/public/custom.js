@@ -40,7 +40,119 @@ document.addEventListener('DOMContentLoaded', function() {
     setupProfileSwitching();
     addServiceIndicators();
     setupDynamicHeaderTitle();
+    setupDropdownPositioning();
+    hideProcessingMessages();
 });
+
+// Setup dropdown positioning to prevent overlap
+function setupDropdownPositioning() {
+    // Observer to watch for dropdown menu creation
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // Check for dropdown menus
+                    const dropdowns = node.querySelectorAll('.MuiPopover-root, .MuiMenu-root');
+                    dropdowns.forEach(positionDropdown);
+                    
+                    // Also check if the node itself is a dropdown
+                    if (node.classList.contains('MuiPopover-root') || node.classList.contains('MuiMenu-root')) {
+                        positionDropdown(node);
+                    }
+                }
+            });
+        });
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // Position existing dropdowns
+    document.querySelectorAll('.MuiPopover-root, .MuiMenu-root').forEach(positionDropdown);
+}
+
+function positionDropdown(dropdown) {
+    if (!dropdown) return;
+    
+    // Add positioning class
+    dropdown.classList.add('positioned-dropdown');
+    
+    // Find the paper element (actual dropdown content)
+    const paper = dropdown.querySelector('.MuiPopover-paper, .MuiMenu-paper');
+    if (paper) {
+        // Ensure proper positioning
+        paper.style.marginTop = '8px';
+        paper.style.marginLeft = '8px';
+        paper.style.transformOrigin = 'top left';
+        paper.style.zIndex = '9999';
+        paper.style.maxHeight = '300px';
+        paper.style.overflowY = 'auto';
+        
+        // Add click handlers to menu items
+        const menuItems = paper.querySelectorAll('.MuiMenuItem-root');
+        menuItems.forEach(item => {
+            item.style.cursor = 'pointer';
+            item.style.userSelect = 'none';
+            
+            // Ensure click events work properly
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Close dropdown after selection
+                setTimeout(() => {
+                    const backdrop = document.querySelector('.MuiModal-backdrop');
+                    if (backdrop) backdrop.click();
+                }, 100);
+            });
+        });
+    }
+}
+
+// Hide processing/thinking messages
+function hideProcessingMessages() {
+    const hideMessages = () => {
+        // Hide various types of processing messages
+        const selectors = [
+            '[data-testid="thinking-message"]',
+            '.thinking-message',
+            '.processing-message',
+            '[class*="thinking"]',
+            '[class*="processing"]',
+            '.cot-container',
+            '.chain-of-thought',
+            '[data-testid="cot"]',
+            '[class*="cot"]'
+        ];
+        
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                el.style.display = 'none';
+            });
+        });
+        
+        // Also hide text content that matches processing patterns
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+            if (el.textContent && el.textContent.includes('is processing your request')) {
+                const parent = el.closest('.message, .chat-message, [class*="message"]');
+                if (parent) {
+                    parent.style.display = 'none';
+                }
+            }
+        });
+    };
+    
+    // Run immediately and set up observer
+    hideMessages();
+    
+    const observer = new MutationObserver(hideMessages);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+}
 
 // Setup dynamic header title functionality
 function setupDynamicHeaderTitle() {

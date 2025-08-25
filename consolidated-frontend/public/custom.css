@@ -3,76 +3,53 @@
 /* === FIREFOX TEXT RENDERING FIXES === */
 /* Firefox-specific fixes for text rendering ghosting */
 @-moz-document url-prefix() {
-    /* Hide all icons and images that might cause ghosting */
-    img, svg, .icon, [class*="icon"], [class*="Icon"] {
-        display: none !important;
-    }
-    
-    /* Hide any emoji or icon rendering elements */
-    .emoji, [class*="emoji"], [data-emoji] {
-        display: none !important;
-    }
-    
-    /* Force clean dropdown menu without any icons */
-    .MuiMenuItem-root * {
-        background-image: none !important;
-        list-style: none !important;
-    }
-    
-    /* Fix missing image handling - this is likely the root cause */
-    img::before, img::after {
-        display: none !important;
-        content: none !important;
-    }
-    
-    /* Disable all transforms and effects that cause ghosting */
+    /* Better approach: Fix text rendering without hiding everything */
     * {
+        text-rendering: auto !important;
+        -moz-osx-font-smoothing: auto !important;
+        font-smooth: auto !important;
+        text-shadow: none !important;
         transform: none !important;
         will-change: auto !important;
         backface-visibility: visible !important;
         perspective: none !important;
         filter: none !important;
-        text-shadow: none !important;
     }
     
-    /* Force simple, clean text rendering */
+    /* Ensure all text elements render cleanly */
     body, body * {
+        text-rendering: geometricPrecision !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        font-variant-ligatures: none !important;
+    }
+    
+    /* Force proper button and input rendering */
+    button, input, select, textarea, .MuiButton-root, .MuiIconButton-root {
+        background-color: #f5f5f5 !important;
+        border: 1px solid #ccc !important;
+        color: #333 !important;
         text-rendering: auto !important;
-        -moz-osx-font-smoothing: auto !important;
-        -webkit-font-smoothing: auto !important;
-        font-smooth: auto !important;
-        text-rendering: geometricPrecision !important;
     }
     
-    /* Specific fixes for header area */
-    header, .MuiToolbar-root, .MuiAppBar-root, [class*="header"], [class*="Header"] {
-        text-rendering: geometricPrecision !important;
-        -moz-osx-font-smoothing: auto !important;
-        font-variant-ligatures: none !important;
-    }
-    
-    /* Specific fixes for dropdown menu */
-    .MuiSelect-select, .MuiFormControl-root, .MuiInputBase-root, .MuiMenuItem-root, .MuiList-root {
-        text-rendering: geometricPrecision !important;
-        -moz-osx-font-smoothing: auto !important;
-        font-variant-ligatures: none !important;
+    /* Fix dropdown menu items */
+    .MuiMenuItem-root, .MuiList-root, .MuiSelect-select {
         background-color: #ffffff !important;
         color: #000000 !important;
+        text-rendering: auto !important;
+        border: none !important;
     }
     
-    /* Remove any CSS that might cause visual effects */
-    .MuiButton-root, button, .MuiIconButton-root {
-        text-rendering: geometricPrecision !important;
-        -moz-osx-font-smoothing: auto !important;
-        background: #f5f5f5 !important;
-        border: 1px solid #ccc !important;
+    /* Remove any problematic pseudo-elements */
+    *::before, *::after {
+        display: none !important;
+        content: none !important;
     }
     
-    /* Typography fixes */
-    .MuiTypography-root, span, div, p, label, h1, h2, h3, h4, h5, h6 {
-        text-rendering: geometricPrecision !important;
-        -moz-osx-font-smoothing: auto !important;
-        font-variant-ligatures: none !important;
+    /* Force hardware acceleration off to prevent ghosting */
+    .MuiAppBar-root, .MuiToolbar-root, .MuiFormControl-root {
+        transform: none !important;
+        will-change: auto !important;
+        backface-visibility: visible !important;
     }
 }
 
@@ -488,4 +465,108 @@ h1, h2, h3, h4, h5, h6, p, span, div, button, a, label, input, select, textarea 
     --text-muted: #64748b;
     --border-color: #334155;
   }
+}
+
+/* === DROPDOWN MENU POSITIONING FIXES === */
+/* Fix for dropdown menu hover overlay issues */
+.MuiPopover-root, .MuiMenu-root, .MuiSelect-root {
+  z-index: 9999 !important;
+}
+
+/* Ensure dropdown menu appears beside selector, not overlapping */
+.MuiMenu-paper, .MuiPopover-paper {
+  margin-top: 8px !important;
+  margin-left: 8px !important;
+  transform-origin: top left !important;
+  z-index: 9999 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid var(--border-color) !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+}
+
+/* Dropdown menu items styling to prevent overlap */
+.MuiMenuItem-root {
+  padding: 12px 16px !important;
+  min-height: 48px !important;
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  user-select: none !important;
+}
+
+.MuiMenuItem-root:hover {
+  background-color: var(--bg-secondary) !important;
+  color: var(--primary-color) !important;
+  transform: none !important;
+}
+
+.MuiMenuItem-root:last-child {
+  border-bottom: none !important;
+}
+
+/* Profile selector specific fixes */
+.MuiFormControl-root .MuiSelect-select {
+  background-color: var(--bg-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 12px 16px !important;
+  min-height: 24px !important;
+}
+
+/* Tooltip positioning - move beside menu instead of overlapping */
+.MuiTooltip-tooltip {
+  margin-left: 16px !important;
+  margin-top: 0 !important;
+  transform: translateX(100%) translateY(-50%) !important;
+  z-index: 10000 !important;
+  background-color: var(--bg-dark) !important;
+  color: var(--text-white) !important;
+  font-size: 0.875rem !important;
+  padding: 8px 12px !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  max-width: 300px !important;
+}
+
+.MuiTooltip-arrow {
+  color: var(--bg-dark) !important;
+}
+
+/* Ensure clickable area for dropdown items */
+.MuiMenuItem-root * {
+  pointer-events: none !important;
+}
+
+.MuiMenuItem-root {
+  pointer-events: all !important;
+}
+
+/* Additional fixes for chat profile selection */
+.chat-profile-selector {
+  position: relative !important;
+  z-index: 1000 !important;
+}
+
+.chat-profile-selector .MuiFormControl-root {
+  min-width: 200px !important;
+}
+
+/* Hide any processing/thinking messages */
+[data-testid="thinking-message"], 
+.thinking-message,
+.processing-message,
+[class*="thinking"],
+[class*="processing"] {
+  display: none !important;
+}
+
+/* Hide Chain of Thought displays */
+.cot-container,
+.chain-of-thought,
+[data-testid="cot"],
+[class*="cot"] {
+  display: none !important;
 }
