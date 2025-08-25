@@ -11,7 +11,8 @@ env/
 .git/
 .gitignore
 README.md
-*.md
+CUSTOMIZATION_COMPLETE.md
+FRONTEND_CUSTOMIZATION.md
 .DS_Store
 .pytest_cache/
 .coverage
