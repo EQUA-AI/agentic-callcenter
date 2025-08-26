@@ -319,17 +319,8 @@ I'm your personal wedding planning specialist, excited to help make your special
         cl.user_session.set("current_service", "EPCON AI")
         cl.user_session.set("service_key", "telco")
         
-        welcome_message = """🤖 **Welcome to EPCON AI**
-**Technical diagnostic & spare parts ordering**
-
-Get comprehensive help with equipment diagnostics, technical troubleshooting, and spare parts ordering. Our EPCON AI specialists provide expert technical assistance.
-
-*How can I help you today?*"""
-        
-        await cl.Message(
-            content=welcome_message,
-            author="🤖 EPCON AI Technical Specialist"
-        ).send()
+        # No welcome message for EPCON AI to avoid interfering with agent responses
+        # The agent will handle its own introductions naturally
     
     # Mark that we've sent the profile welcome
     cl.user_session.set("profile_welcomed", True)
@@ -465,10 +456,18 @@ async def on_service_switch(action):
         cl.user_session.set("current_service", service["name"])
         cl.user_session.set("service_key", service_key)
         
-        await cl.Message(
-            content=f"Switched to {service['name']} {service['emoji']}\n\n{service['greeting']}",
-            author=f"{service['name']} Specialist"
-        ).send()
+        # Don't send welcome message for EPCON AI to avoid interfering with agent responses
+        if service_key != "telco":
+            await cl.Message(
+                content=f"Switched to {service['name']} {service['emoji']}\n\n{service['greeting']}",
+                author=f"{service['name']} Specialist"
+            ).send()
+        else:
+            # Just confirm the switch for EPCON AI without welcome message
+            await cl.Message(
+                content=f"Switched to {service['name']} {service['emoji']}",
+                author=f"{service['name']} Specialist"
+            ).send()
 
 if __name__ == "__main__":
     # Run the Chainlit app
