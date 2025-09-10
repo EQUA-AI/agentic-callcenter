@@ -44,19 +44,30 @@ class Message(BaseModel):
     content: str
 
 # A helper class that store and retrieve messages by conversation from an Azure Cosmos DB
-key = DefaultAzureCredential()
-db = ConversationStore(
-    url=os.getenv("COSMOSDB_ENDPOINT"),
-    key=key,
-    database_name=os.getenv("COSMOSDB_DATABASE"),
-    container_name=os.getenv("COSMOSDB_CONTAINER")
-)
+from multi_container_conversation_store import MultiContainerConversationStore
+db = MultiContainerConversationStore()
+
+def extract_phone_from_conversation_id(conversation_id: str) -> str:
+    """Extract phone number from conversation_id format: {channel_id}_{phone}_{timestamp}"""
+    try:
+        parts = conversation_id.split('_')
+        if len(parts) >= 3:
+            # Phone number is the second part, add back the '+' prefix
+            phone = parts[1]
+            return f"+{phone}"
+        return ""
+    except Exception:
+        return ""
 
 # Get all messages by conversation
 @conversation_router.get("/{conversation_id}")
 def get_messages(conversation_id: str):
     """Get all messages for a conversation."""
-    conv = db.get_conversation(conversation_id) or []
+    phone_number = extract_phone_from_conversation_id(conversation_id)
+    if not phone_number:
+        return []
+    
+    conv = db.get_conversation(phone_number, conversation_id) or {}
     return conv.get("messages", [])
 
 class MediaRequest(BaseModel):
@@ -75,7 +86,11 @@ def send_message(conversation_id: str, request: MessageRequest):
     print(f"[ROUTER] POST /{conversation_id} called with message: '{request.message[:50]}...'")
     
     # Get conversation history
-    history = db.get_conversation(conversation_id) or {"messages": [], "variables": {}}
+    phone_number = extract_phone_from_conversation_id(conversation_id)
+    if not phone_number:
+        return {"error": "Invalid conversation ID format"}
+    
+    history = db.get_conversation(phone_number, conversation_id) or {"messages": [], "variables": {}}
     messages = history.get("messages", [])
     variables = history.get("variables", {})
     
@@ -108,7 +123,7 @@ def send_message(conversation_id: str, request: MessageRequest):
         })
         
         # Save conversation
-        db.save_conversation(conversation_id, {"messages": messages, "variables": variables})
+        db.save_conversation(phone_number, conversation_id, {"messages": messages, "variables": variables})
         
         # Return new messages
         new_messages = messages[history_count:]
@@ -125,7 +140,12 @@ def send_message_streaming(conversation_id: str, request: MessageRequest):
     def stream_response():
         try:
             # Get conversation history
-            history = db.get_conversation(conversation_id) or {"messages": [], "variables": {}}
+            phone_number = extract_phone_from_conversation_id(conversation_id)
+            if not phone_number:
+                yield "data: {'error': 'Invalid conversation ID format'}\n\n"
+                return
+            
+            history = db.get_conversation(phone_number, conversation_id) or {"messages": [], "variables": {}}
             messages = history.get("messages", [])
             variables = history.get("variables", {})
             
@@ -162,7 +182,7 @@ def send_message_streaming(conversation_id: str, request: MessageRequest):
             })
             
             # Save conversation
-            db.save_conversation(conversation_id, {"messages": messages, "variables": variables})
+            db.save_conversation(phone_number, conversation_id, {"messages": messages, "variables": variables})
             
             # Final result
             yield json.dumps(["result", messages[-2:]]) + "\n"
