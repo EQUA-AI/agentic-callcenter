@@ -9,8 +9,29 @@ import logging
 from azure.identity import DefaultAzureCredential
 
 from conversation_store import ConversationStore
-from utils.voice_utils import whisper_client
+# from utils.voice_utils import whisper_client  # Temporarily commented out
 from foundry_agent import ask_foundry
+
+# Temporary whisper client initialization to avoid import error
+try:
+    from utils.voice_utils import whisper_client
+except ImportError:
+    # Fallback whisper client if utils not available
+    import os
+    from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    from openai import AzureOpenAI
+    
+    api_key = os.getenv("AZURE_OPENAI_WHISPER_API_KEY")
+    token_provider = get_bearer_token_provider(
+        DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+    ) if api_key is None or api_key == "" else None
+    
+    whisper_client = AzureOpenAI(
+        api_key=api_key,  
+        api_version=os.getenv("AZURE_OPENAI_WHISPER_VERSION"),
+        azure_endpoint = os.getenv("AZURE_OPENAI_WHISPER_ENDPOINT"),
+        azure_ad_token_provider=token_provider
+    )
 
 conversation_router = APIRouter(prefix="/conversation")
 
