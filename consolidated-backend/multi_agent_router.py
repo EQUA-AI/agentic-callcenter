@@ -18,9 +18,9 @@ try:
     from foundry_agent import ask_foundry
 except ImportError:
     # Fallback if import fails
-    def ask_foundry(message: str, conversation_id: str = None) -> str:
+    def ask_foundry(user_text: str, conversation_id: str = None, agent_id: str = None, foundry_endpoint: str = None) -> str:
         """Fallback function when foundry_agent is not available"""
-        return f"Echo: {message} (foundry_agent not available)"
+        return f"Echo: {user_text} (foundry_agent not available)"
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +150,12 @@ class MultiAgentRouter:
             if not conversation_id:
                 conversation_id = f"{routing_info['channel_id']}_{from_phone.replace('+', '')}_{int(datetime.utcnow().timestamp())}"
             
+            # Get the business phone number from routing info for container selection
+            business_phone = routing_info.get('channel', {}).get('phone_number', to_phone)
+            
             # Get existing conversation from phone-specific container
             existing_conversation = self.conversation_store.get_conversation(
-                phone_number=to_phone,
+                phone_number=business_phone,
                 conversation_id=conversation_id
             )
             
@@ -193,7 +196,7 @@ class MultiAgentRouter:
             
             # Save to phone-specific container
             self.conversation_store.save_conversation(
-                phone_number=to_phone,
+                phone_number=business_phone,
                 conversation_id=conversation_id,
                 conversation=conversation_data
             )
@@ -233,13 +236,12 @@ class MultiAgentRouter:
             Agent's response
         """
         try:
-            # Call the updated ask_foundry function with agent-specific parameters
+            # Call the ask_foundry function with correct parameters
             response = ask_foundry(
                 user_text=message_content, 
                 conversation_id=conversation_id,
                 agent_id=agent_config['agent_id'],
-                foundry_endpoint=agent_config['foundry_endpoint'],
-                conversation_history=existing_conversation.get("messages", []) if existing_conversation else []
+                foundry_endpoint=agent_config['foundry_endpoint']
             )
             
             logger.info(f"Agent {agent_config['agent_name']} responded to conversation {conversation_id}")
